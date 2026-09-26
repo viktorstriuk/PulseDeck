@@ -1,0 +1,86 @@
+name: Build a signed-feed release draft
+# This workflow builds trusted default-branch source ONLY. It does not consume
+# executable artifacts from PR workflows. Protect the release environment with
+# reviewers and keep UPDATE_PRIVATE_KEY_PEM as an environment-scoped secret.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: official-release
+  cancel-in-progress: false
+jobs:
+  draft:
+    if: github.ref_name == github.event.repository.default_branch
+    environment: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Validate official configuration
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),s=require('./app/updates/security'),c=require('./app/updates/config.json'),p=require('./app/package.json');
+          if(!s.ready(c)||`${c.repository.owner}/${c.repository.name}`!==process.env.GITHUB_REPOSITORY)throw Error('Official source and Ed25519 public key must be configured first');
+          s.version(p.version);
+          fs.appendFileSync(process.env.GITHUB_ENV,`RELEASE_VERSION=${p.version}\nRELEASE_TAG=v${p.version}\nIS_PRERELEASE=${s.version(p.version).pre.length?'true':'false'}\n`);
+          JS
+      - name: Prepare test environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install --user -r tests/requirements.txt
+          python3 -m playwright install --with-deps chromium
+          CHROME=$(python3 -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')
+          sudo ln -sf "$CHROME" /usr/bin/chromium
+      - name: Test trusted source and build
+        run: |
+          node --test tests/*.test.js
+          node tools/audit-i18n.js
+          python3 tools/build-release.py
+          (cd native && go test -race ./...)
+          (cd installer/engine && go test -race ./...)
+          python3 tools/run-browser-tests.py
+          python3 tools/package-source.py
+      - name: Sign update feed (does not provide Authenticode)
+        env:
+          UPDATE_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_PRIVATE_KEY_PEM }}
+        run: |
+          umask 077
+          KEY_FILE="$RUNNER_TEMP/pulsedeck-release.private.pem"
+          trap 'rm -f "$KEY_FILE"' EXIT
+          printf '%s' "$UPDATE_PRIVATE_KEY_PEM" > "$KEY_FILE"
+          unset UPDATE_PRIVATE_KEY_PEM
+          node tools/sign-release.js application --private-key "$KEY_FILE" --notes-ru "docs/releases/$RELEASE_VERSION.ru.md" --notes-en "docs/releases/$RELEASE_VERSION.en.md"
+          (cd dist && sha256sum "PulseDeck-Setup-$RELEASE_VERSION.exe" "PulseDeck-$RELEASE_VERSION-source.zip" pulsedeck-update-*.json > SHA256SUMS.txt)
+      - name: Create draft, never silently replace existing release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'A release already exists. Use a new version rather than replace binaries.' >&2
+            exit 1
+          fi
+          flags=()
+          if [ "$IS_PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" --draft "${flags[@]}" --target "$GITHUB_SHA" --title "PulseDeck $RELEASE_VERSION" --notes-file "docs/releases/$RELEASE_VERSION.ru.md" \
+            "dist/PulseDeck-Setup-$RELEASE_VERSION.exe" "dist/PulseDeck-$RELEASE_VERSION-source.zip" dist/pulsedeck-update-*.json dist/SHA256SUMS.txt
+      - name: Keep evidence for manual Windows acceptance
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-evidence-${{ github.run_id }}
+          path: test-results/
+          retention-days: 30

@@ -1,0 +1,150 @@
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestInstallerCatalogFallback(t *testing.T) {
+	oldLang, oldCatalogs := setupLanguage, setupCatalogs
+	defer func() { setupLanguage = oldLang; setupCatalogs = oldCatalogs }()
+	setupCatalogs = map[string]map[string]json.RawMessage{"xx": {"Button": json.RawMessage(`"Custom"`)}, "en": {"Button": json.RawMessage(`"English"`)}, "ru": {"OnlyRussian": json.RawMessage(`"Русский"`)}}
+	setupLanguage = "xx"
+	if It("Button") != "Custom" {
+		t.Fatal("selected catalog")
+	}
+	delete(setupCatalogs["xx"], "Button")
+	if It("Button") != "English" {
+		t.Fatal("English fallback")
+	}
+	delete(setupCatalogs["en"], "Button")
+	if It(" \"Button\" ") != "Button" {
+		t.Fatal("clean key fallback")
+	}
+	if It("OnlyRussian") != "OnlyRussian" {
+		t.Fatal("unexpected Russian fallback")
+	}
+}
+func TestInstallerEmbeddedLanguages(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	t.Setenv("PULSEDECK_LANGUAGE", "en")
+	initSetupLanguage()
+	if !strings.Contains(It("InstallerDone"), "Done") {
+		t.Fatal(It("InstallerDone"))
+	}
+	if len(setupCatalogs["en"]) != len(setupCatalogs["ru"]) || len(setupCatalogs["en"]) < 1400 {
+		t.Fatal("catalog parity")
+	}
+	setupLanguage = "ru"
+	if !strings.Contains(It("InstallerDone"), "Готово") {
+		t.Fatal(It("InstallerDone"))
+	}
+}
+func writeTestFile(t *testing.T, file, text string) {
+	t.Helper()
+	if e := os.MkdirAll(filepath.Dir(file), 0755); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(file, []byte(text), 0644); e != nil {
+		t.Fatal(e)
+	}
+}
+func TestInstallerPreservesEditedCatalogsAndCustomIcons(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "resources", "app")
+	languages := filepath.Join(target, "languages")
+	old := `{"meta":{"code":"en","name":"My English","icon":"custom.svg"},"messages":{"SettingsButton":"My settings"}}`
+	writeTestFile(t, filepath.Join(languages, "en.json"), old)
+	writeTestFile(t, filepath.Join(languages, "fr.json"), `{"meta":{"name":"Français"},"messages":{"SettingsButton":"Paramètres"}}`)
+	writeTestFile(t, filepath.Join(languages, "icons", "custom.svg"), "<svg/>")
+	files, err := preserveLanguageFiles(target, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 3 {
+		t.Fatal(len(files))
+	}
+	backup, err := filepath.Glob(filepath.Join(root, "data", "language-backups", "*", "en.json"))
+	if err != nil || len(backup) != 1 {
+		t.Fatal("backup not created", err)
+	}
+	data, _ := os.ReadFile(backup[0])
+	if string(data) != old {
+		t.Fatal("backup differs")
+	}
+	if err = os.RemoveAll(target); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(languages, "en.json"), `{"meta":{"code":"en","name":"English"},"messages":{"SettingsButton":"Settings","NewKey":"New"}}`)
+	if err = restoreLanguageFiles(target, files); err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Meta     map[string]string
+		Messages map[string]string
+	}
+	data, _ = os.ReadFile(filepath.Join(languages, "en.json"))
+	if err = json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Messages["SettingsButton"] != "My settings" || got.Messages["NewKey"] != "New" || got.Meta["name"] != "My English" {
+		t.Fatal(string(data))
+	}
+	if data, _ = os.ReadFile(filepath.Join(languages, "icons", "custom.svg")); string(data) != "<svg/>" {
+		t.Fatal("icon lost")
+	}
+	if _, err = os.Stat(filepath.Join(languages, "fr.json")); err != nil {
+		t.Fatal("custom language lost")
+	}
+}
+func TestInstallerInvalidEditedBuiltinDoesNotReplaceShippedCatalog(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "resources", "app")
+	file := filepath.Join(target, "languages", "en.json")
+	fresh := `{"meta":{"name":"English"},"messages":{"K":"Good"}}`
+	writeTestFile(t, file, fresh)
+	for _, bad := range []string{"{broken", `{"messages":42}`, `[]`} {
+		if err := restoreLanguageFiles(target, map[string][]byte{"en.json": []byte(bad)}); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(file)
+		if string(data) != fresh {
+			t.Fatal("invalid old catalog overwrote shipped file")
+		}
+	}
+}
+func TestInstallerInvalidOldMetadataDoesNotHideEnglish(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "resources", "app")
+	file := filepath.Join(target, "languages", "en.json")
+	writeTestFile(t, file, `{"meta":{"name":"English","code":"en"},"messages":{"K":"Good"}}`)
+	if err := restoreLanguageFiles(target, map[string][]byte{"en.json": []byte(`{"meta":{"name":"","code":"wrong"},"messages":{"K":"Custom"}}`)}); err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Meta     map[string]string
+		Messages map[string]string
+	}
+	data, _ := os.ReadFile(file)
+	json.Unmarshal(data, &got)
+	if got.Meta["name"] != "English" || got.Messages["K"] != "Custom" {
+		t.Fatal(string(data))
+	}
+}
+func TestInstallerLanguageBackupIgnoresSymlinksAndUnrelatedFiles(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "resources", "app")
+	dir := filepath.Join(target, "languages")
+	writeTestFile(t, filepath.Join(dir, "notes.txt"), "not a catalog")
+	writeTestFile(t, filepath.Join(root, "secret.json"), "private")
+	if err := os.Symlink(filepath.Join(root, "secret.json"), filepath.Join(dir, "link.json")); err != nil {
+		t.Skip(err)
+	}
+	files, err := preserveLanguageFiles(target, root)
+	if err != nil || len(files) != 0 {
+		t.Fatal(files, err)
+	}
+}

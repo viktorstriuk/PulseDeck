@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http://127.0.0.1:*; object-src 'none'; base-uri 'none';">
+  <title data-i18n="PlayerOverlayPulseDeckPlayer"></title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <main id="card" class="player-card">
+    <button id="clickThroughToggle" class="click-through-toggle no-drag" type="button" aria-label="" data-i18n-aria-label="PlayerOverlayClickThrough" aria-pressed="false" title="" data-i18n-title="PlayerOverlayClickThrough"><span aria-hidden="true"></span></button>
+    <canvas id="vizBackground" class="viz viz-background" aria-hidden="true"></canvas>
+    <div id="orbCoverShell" class="orb-cover-shell" aria-hidden="true">
+      <img id="orbCover" class="orb-cover" alt="">
+    </div>
+    <div id="previewBadge" class="preview-badge hidden" data-i18n="PlayerOverlayPreviewDragAndResizeThisWindow"></div>
+
+    <section id="normalView" class="normal-view">
+      <div class="primary-row">
+        <img id="cover" class="cover" alt="">
+        <div class="meta">
+          <span id="label" class="label" data-i18n="PlayerDefaultLabel"></span>
+          <strong id="title" class="title" data-i18n="AppName"></strong>
+          <span id="artist" class="artist" data-i18n="AppTagline"></span>
+          <span id="playlist" class="playlist"></span>
+        </div>
+        <div id="controls" class="controls no-drag">
+          <button data-action="previous" aria-label="" data-i18n-aria-label="UIPrevious" title="" data-i18n-title="UIPrevious"><span data-icon="skipBack"></span></button>
+          <button data-action="playPause" id="playButton" aria-label="" data-i18n-aria-label="PlayerOverlayPause" title="" data-i18n-title="PlayerOverlayPause"><span data-icon="pause"></span></button>
+          <button data-action="next" aria-label="" data-i18n-aria-label="UINext" title="" data-i18n-title="UINext"><span data-icon="skipForward"></span></button>
+        </div>
+      </div>
+
+      <div id="transportRow" class="transport-row no-drag">
+        <span id="elapsedTime" class="transport-time elapsed">0:00</span>
+        <div id="progressWrap" class="progress-wrap" role="slider" tabindex="0" aria-label="" data-i18n-aria-label="PlayerOverlayTrackPosition" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="progress"></i><b id="progressThumb"></b>
+        </div>
+        <span id="remainingTime" class="transport-time remaining">−0:00</span>
+      </div>
+
+      <canvas id="vizForeground" class="viz viz-foreground" aria-hidden="true"></canvas>
+    </section>
+
+    <section id="helpView" class="help-view hidden">
+      <div class="help-title"><b data-i18n="PlayerOverlayPulseDeckControls"></b><span data-i18n="PlayerOverlayWorksEvenOverGames"></span></div>
+      <div id="helpGrid" class="help-grid"></div>
+    </section>
+
+    <div class="resize-handle resize-n" data-resize="n"></div>
+    <div class="resize-handle resize-s" data-resize="s"></div>
+    <div class="resize-handle resize-e" data-resize="e"></div>
+    <div class="resize-handle resize-w" data-resize="w"></div>
+    <div class="resize-handle resize-ne" data-resize="ne"></div>
+    <div class="resize-handle resize-nw" data-resize="nw"></div>
+    <div class="resize-handle resize-se" data-resize="se"></div>
+    <div class="resize-handle resize-sw" data-resize="sw"></div>
+  </main>
+  <script src="../shared/i18n.js"></script>
+  <script src="../i18n/dom.js"></script>
+  <script src="../renderer/icons.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>

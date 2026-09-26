@@ -1,0 +1,148 @@
+:root{
+  color-scheme:dark;
+  --bg:#11151d;--fg:#f7f8fc;--muted:#a6adbd;--accent:#b038ae;--accent2:#4665c2;
+  --radius:18px;--opacity:.94;--blur:18px;--viz-h:18px;--viz-opacity:.88;
+}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;background:transparent;overflow:hidden;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--fg)}
+body{padding:5px}
+.player-card{
+  position:relative;width:100%;height:100%;min-width:170px;min-height:28px;overflow:hidden;isolation:isolate;
+  border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);border-radius:var(--radius);
+  background:color-mix(in srgb,var(--bg) var(--opacity-pct,94%),transparent);
+  backdrop-filter:blur(var(--blur)) saturate(1.16);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.16);
+  -webkit-app-region:drag;
+}
+.player-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(118deg,rgba(255,255,255,.045),transparent 34%,transparent 72%,rgba(255,255,255,.02));z-index:4}
+.player-card.no-surface{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.player-card.no-surface::after{display:none}
+.player-card.no-border{border-color:transparent}
+.player-card.click-through{cursor:default}
+
+.normal-view{position:relative;z-index:2;width:100%;height:100%;min-width:0;min-height:0;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
+.primary-row{min-width:0;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:11px;align-items:center;flex:1}
+.cover{width:clamp(42px,min(72px,38vh),94px);height:clamp(42px,min(72px,38vh),94px);aspect-ratio:1;border-radius:calc(var(--radius)*.55);object-fit:cover;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.meta{min-width:0;display:flex;flex-direction:column;gap:2px;align-self:center}
+.label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.025em}
+.title{font-size:clamp(13px,3.4vh,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.22}
+.artist,.playlist{font-size:clamp(10px,2.6vh,13px);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.playlist{font-size:10px;color:color-mix(in srgb,var(--accent) 62%,var(--fg))}
+.controls{display:flex;gap:5px;align-items:center;-webkit-app-region:no-drag}
+.controls button{width:34px;height:34px;border:0;border-radius:10px;color:var(--fg);background:rgba(255,255,255,.055);display:grid;place-items:center;cursor:pointer;transition:background .15s ease,transform .15s ease}
+.controls button svg{display:block;width:14px;height:14px}.controls button:hover{background:rgba(255,255,255,.105)}.controls button:active{transform:scale(.94)}
+
+.transport-row{display:grid;grid-template-columns:auto minmax(32px,1fr) auto;gap:8px;align-items:center;min-width:0;-webkit-app-region:no-drag}
+.transport-time{font-variant-numeric:tabular-nums;font-size:9px;color:var(--muted);white-space:nowrap;line-height:1}
+.progress-wrap{position:relative;height:12px;cursor:pointer;display:flex;align-items:center;outline:none;-webkit-app-region:no-drag}
+.progress-wrap::before{content:"";position:absolute;left:0;right:0;height:4px;border-radius:99px;background:rgba(255,255,255,.13)}
+.progress-wrap i{position:absolute;left:0;height:4px;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));pointer-events:none}
+.progress-wrap b{position:absolute;left:0;width:10px;height:10px;border-radius:50%;background:var(--fg);transform:translateX(-50%) scale(.55);opacity:0;transition:opacity .13s ease,transform .13s ease;pointer-events:none}
+.progress-wrap:hover b,.progress-wrap:focus-visible b,.progress-wrap.scrubbing b{opacity:1;transform:translateX(-50%) scale(1)}
+.progress-wrap:focus-visible{outline:1px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:4px;border-radius:6px}
+
+.viz{pointer-events:none;box-sizing:border-box;display:block;max-width:100%;max-height:100%;opacity:var(--viz-opacity)}
+.viz-background{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:calc(var(--viz-opacity)*.72)}
+.viz-foreground{position:relative;order:3;width:100%;height:var(--viz-h);flex:0 0 var(--viz-h);z-index:1}
+.viz-bottom .viz-background,.viz-top .viz-background{display:none}
+.viz-top .viz-foreground{order:-1}
+.viz-center .viz-foreground{position:absolute;left:12px;right:12px;top:50%;width:calc(100% - 24px);height:var(--viz-h);transform:translateY(-50%);z-index:1;opacity:calc(var(--viz-opacity)*.72)}
+.viz-center .viz-background{display:none}
+.viz-background-mode .viz-foreground{display:none}
+.viz-background-mode .viz-background{display:block}
+
+.preview-badge{position:absolute;top:5px;left:50%;transform:translateX(-50%);z-index:40;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.07);font-size:9px;color:#d9deea;pointer-events:none;white-space:nowrap}
+
+.help-view{position:relative;z-index:6;width:100%;height:100%;padding:13px;display:flex;gap:13px;align-items:center;min-width:0;min-height:0}
+.help-title{min-width:145px;display:flex;flex-direction:column;gap:3px}.help-title b{font-size:14px}.help-title span{font-size:10px;color:var(--muted)}
+.help-grid{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px}.help-row{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:10px;color:#dce1eb}.keys{display:flex;gap:3px;align-items:center}.key{min-width:19px;padding:3px 5px;border-radius:5px;text-align:center;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.09);font-size:9px;font-weight:700}
+.hidden{display:none!important}
+
+.no-cover .primary-row{grid-template-columns:minmax(0,1fr) auto}.no-cover .cover{display:none}
+.no-title .title{display:none}.no-artist .artist{display:none}.no-label .label{display:none}.no-playlist .playlist{display:none}.no-controls .controls{display:none}
+.no-progress .progress-wrap{display:none}.no-elapsed .elapsed{display:none}.no-remaining .remaining{display:none}
+.no-progress.no-elapsed.no-remaining .transport-row{display:none}.no-progress .transport-row{grid-template-columns:auto auto;justify-content:space-between}
+.no-progress.no-elapsed .transport-row,.no-progress.no-remaining .transport-row{grid-template-columns:auto;justify-content:flex-start}
+.viz-off .viz{display:none!important}
+
+/* Deliberately generous custom resize hit-zones for the frameless player. */
+.resize-handle{position:absolute;z-index:90;-webkit-app-region:no-drag;background:transparent}
+.resize-n,.resize-s{left:11px;right:11px;height:12px}.resize-n{top:0;cursor:ns-resize}.resize-s{bottom:0;cursor:ns-resize}
+.resize-e,.resize-w{top:11px;bottom:11px;width:12px}.resize-e{right:0;cursor:ew-resize}.resize-w{left:0;cursor:ew-resize}
+.resize-ne,.resize-nw,.resize-se,.resize-sw{width:18px;height:18px}
+.resize-ne{right:0;top:0;cursor:nesw-resize}.resize-nw{left:0;top:0;cursor:nwse-resize}.resize-se{right:0;bottom:0;cursor:nwse-resize}.resize-sw{left:0;bottom:0;cursor:nesw-resize}
+.preview-mode .preview-badge{pointer-events:auto;-webkit-app-region:drag;cursor:move}
+
+@media(max-height:94px){
+  .normal-view{padding:7px 9px;gap:4px}.primary-row{gap:8px}.label,.playlist{display:none}.cover{width:48px;height:48px}.controls button{width:29px;height:29px;border-radius:8px}.artist{font-size:10px}.transport-time{font-size:8px}.transport-row{gap:6px}.viz-foreground{max-height:16px}
+}
+@media(max-height:64px){.cover{display:none}.primary-row{grid-template-columns:minmax(0,1fr) auto}.artist{display:none}.normal-view{padding:6px 9px}.transport-row{display:none}}
+@media(max-width:340px){.controls{display:none}.primary-row{grid-template-columns:auto minmax(0,1fr)}.no-cover .primary-row{grid-template-columns:minmax(0,1fr)}.cover{max-width:56px;max-height:56px}.transport-time{display:none}.transport-row{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* PulseDeck 2.3 — easier frameless resizing and visualizer-specific composition. */
+.resize-n,.resize-s{left:16px;right:16px;height:16px}
+.resize-e,.resize-w{top:16px;bottom:16px;width:16px}
+.resize-ne,.resize-nw,.resize-se,.resize-sw{width:26px;height:26px}
+.player-card[data-viz-style="orb"].viz-background-mode .primary-row{grid-template-columns:1fr;justify-items:center;align-content:center;text-align:center}
+.player-card[data-viz-style="orb"].viz-background-mode .cover{width:min(32vw,96px);height:min(32vw,96px);border-radius:50%}
+.player-card[data-viz-style="orb"].viz-background-mode .meta{align-items:center;max-width:72%}
+.player-card[data-viz-style="orb"].viz-background-mode .controls{justify-content:center}
+
+/* 2.3.1 — Orb keeps the album art inside the visualizer's central circle. */
+.orb-cover-shell{
+  display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
+  width:clamp(54px,30vmin,104px);height:clamp(54px,30vmin,104px);border-radius:50%;overflow:hidden;
+  place-items:center;background:color-mix(in srgb,var(--bg) 82%,#000);border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--bg) 74%,transparent);
+  pointer-events:none;
+}
+.orb-cover{width:100%;height:100%;object-fit:cover;display:block}
+.player-card[data-viz-style="orb"] .orb-cover-shell{display:grid}
+.player-card[data-viz-style="orb"].no-cover .orb-cover-shell{display:none!important}
+.player-card[data-viz-style="orb"].viz-background-mode .primary-row{position:absolute;left:10%;right:10%;bottom:10%;height:auto;display:grid;grid-template-columns:1fr;justify-items:center;align-items:end;text-align:center;z-index:3;pointer-events:none}
+.player-card[data-viz-style="orb"].viz-background-mode .primary-row>.cover{display:none}
+.player-card[data-viz-style="orb"].viz-background-mode .meta{align-items:center;max-width:100%;width:100%}
+.player-card[data-viz-style="orb"].viz-background-mode .title{max-width:100%;font-size:clamp(12px,4.3vmin,18px)}
+.player-card[data-viz-style="orb"].viz-background-mode .artist,.player-card[data-viz-style="orb"].viz-background-mode .playlist{max-width:100%}
+.player-card[data-viz-style="orb"].viz-background-mode .controls{pointer-events:auto}
+@media(max-height:180px){.player-card[data-viz-style="orb"] .orb-cover-shell{width:48px;height:48px;top:42%}}
+
+/* PulseDeck 2.3.2 — reliable interaction islands and hotkey transitions. */
+.controls,.controls button,.transport-row,.progress-wrap{position:relative;z-index:24;-webkit-app-region:no-drag!important;pointer-events:auto}
+.player-card::after,.viz,.orb-cover-shell{pointer-events:none!important}
+.player-card.track-switch .cover,.player-card.track-switch .orb-cover{animation:pdCoverSwitch .42s cubic-bezier(.2,.85,.25,1)}
+.player-card.track-switch .meta,.player-card.track-switch .controls,.player-card.track-switch .transport-row{animation:pdContentSwitch .38s cubic-bezier(.2,.85,.25,1)}
+.player-card.soft-pulse .normal-view{animation:pdSoftPulse .28s ease-out}
+@keyframes pdCoverSwitch{0%{opacity:.25;transform:scale(.92)}55%{opacity:1;transform:scale(1.025)}100%{opacity:1;transform:scale(1)}}
+@keyframes pdContentSwitch{0%{opacity:.1;transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pdSoftPulse{0%{opacity:.72}100%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.player-card.track-switch .cover,.player-card.track-switch .orb-cover,.player-card.track-switch .meta,.player-card.track-switch .controls,.player-card.track-switch .transport-row,.player-card.soft-pulse .normal-view{animation:none!important}}
+
+/* 2.6: independent, opaque input switch. It cannot be hidden by cover/controls/viz
+   settings, the corner resize handles or a completely transparent player surface. */
+.click-through-toggle{position:absolute;right:7px;top:7px;width:30px;height:30px;padding:5px;display:grid;place-items:center;z-index:120;border:1px solid rgba(255,255,255,.22);border-radius:9px;background:#222735;color:#f3f5fb;cursor:pointer;pointer-events:auto!important;-webkit-app-region:no-drag;box-shadow:0 2px 8px rgba(0,0,0,.22);transition:background .16s,border-color .16s,transform .16s}
+.click-through-toggle span{width:19px;height:19px;background:currentColor;mask:url('../assets/player-icons/pointer-crossed.svg') center/contain no-repeat;-webkit-mask:url('../assets/player-icons/pointer-crossed.svg') center/contain no-repeat;pointer-events:none}
+.click-through-toggle.enabled{color:#fff;background:color-mix(in srgb,var(--accent) 66%,#222735);border-color:color-mix(in srgb,var(--accent) 70%,#fff)}
+.click-through-toggle.enabled span{mask-image:url('../assets/player-icons/pointer.svg');-webkit-mask-image:url('../assets/player-icons/pointer.svg')}
+.click-through-toggle:hover{border-color:#fff;filter:brightness(1.16)}
+.click-through-toggle:active{transform:scale(.94)}
+.click-through-toggle:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.has-click-toggle .normal-view,.has-click-toggle .help-view{padding-right:47px}
+.has-click-toggle .preview-badge{max-width:calc(100% - 90px);overflow:hidden;text-overflow:ellipsis}
+.has-click-toggle[data-viz-style="orb"].viz-background-mode .primary-row{right:calc(10% + 30px)}
+.player-card.click-through{-webkit-app-region:no-drag}
+.click-through .controls,.click-through .controls button,.click-through .progress-wrap{pointer-events:auto!important;-webkit-app-region:no-drag}
+@media(max-height:64px){.click-through-toggle{width:24px;height:24px;top:1px;right:5px;padding:3px;border-radius:7px}.click-through-toggle span{width:17px;height:17px}.has-click-toggle .normal-view{padding-right:36px}.has-click-toggle .preview-badge{display:none}}
+
+/* 2.6.2 — controls stay above resize edges and never inherit pass-through. */
+.normal-view{z-index:auto}
+.click-through .normal-view{pointer-events:none}
+.controls,.controls button,.transport-row,.progress-wrap{z-index:100}
+.cover.is-placeholder,.orb-cover.is-placeholder{object-fit:contain;background:transparent}
+.controls button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+
+/* 2.6.3: edit geometry only when effective click-through is OFF. Controls keep
+   their input islands. This includes the preview badge, which was a drag region. */
+.click-through .resize-handle{display:none!important;pointer-events:none!important;cursor:default!important}
+.click-through .preview-badge{-webkit-app-region:no-drag!important;pointer-events:none!important;cursor:default}
+.player-card.preview-mode.no-border{border:1px dashed color-mix(in srgb,var(--fg) 68%,transparent)}

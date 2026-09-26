@@ -1,0 +1,15 @@
+{
+  "format": "pulsedeck-lyrics",
+  "version": 1,
+  "offsetMs": 0,
+  "gapThresholdMs": 2500,
+  "theme": {"mode": "gradient", "background": "#332132", "gradientColors": ["#332132", "#162836"], "gradientAngle": 135, "autoContrast": true},
+  "notes": ["Invented example text only. The final object must use the exact recordingId and durationMs from track.json."],
+  "lines": [
+    {"startMs": 1000, "segments": [{"startMs": 1000, "text": "Lanterns "}, {"startMs": 1700, "text": "over quiet water "}, {"startMs": 3000, "text": "glow."}]},
+    {"startMs": 5000, "endMs": 7000, "text": "The evening brings us home."},
+    {"kind": "interlude", "startMs": 7000, "endMs": 11000},
+    {"startMs": 11000, "text": "Another line without a measured end."},
+    {"text": "An untimed line stays readable."}
+  ]
+}

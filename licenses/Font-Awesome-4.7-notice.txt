@@ -1,0 +1,27 @@
+# Third-party notices
+
+## Font Awesome 4.7
+
+PulseDeck uses icon outlines derived from Font Awesome 4.7 glyphs for general interface controls.
+
+- Project: Font Awesome
+- Upstream: https://github.com/FortAwesome/Font-Awesome
+- Copyright: 2012-2018 Dave Gandy and contributors
+- Font/icon source used for the converted outlines: SIL Open Font License 1.1
+
+PulseDeck does **not** redistribute the Font Awesome font file. Its renderer contains converted inline vector path data for the interface glyphs.
+
+The PulseDeck center mark used by built-in application icons and the SVG pack used by the playlist editor were supplied directly by the user for this project; they are not represented here as Font Awesome assets.
+
+### SIL OPEN FONT LICENSE Version 1.1
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of the Font Software, to use, study, copy, merge, embed, modify, redistribute, and sell modified and unmodified copies of the Font Software, subject to the following conditions:
+
+1. Neither the Font Software nor any of its individual components, in Original or Modified Versions, may be sold by itself.
+2. Original or Modified Versions of the Font Software may be bundled, redistributed and/or sold with any software, provided that each copy contains the copyright notice and this license.
+3. No Modified Version of the Font Software may use the Reserved Font Name(s) unless explicit written permission is granted by the corresponding Copyright Holder.
+4. The names of the Copyright Holder(s) or Author(s) shall not be used to promote, endorse or advertise any Modified Version except to acknowledge their contribution or with explicit permission.
+5. The Font Software, modified or unmodified, in part or in whole, must be distributed entirely under this license. The requirement for fonts to remain under this license does not apply to documents created using the Font Software.
+
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.
+

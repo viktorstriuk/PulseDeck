@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "repository": {
+    "owner": "viktorstriuk",
+    "name": "PulseDeck"
+  },
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEACn/qSmbvc3fLq+4xtblXashAwWspLMHUuRQqH/vqO9I=\n-----END PUBLIC KEY-----\n",
+  "checkIntervalHours": 12,
+  "releaseAsset": "pulsedeck-update-{channel}.json",
+  "componentsAsset": "pulsedeck-components-{channel}.json",
+  "componentsMode": "publishers"
+}

@@ -1,0 +1,747 @@
+package main
+
+import (
+	"archive/zip"
+	"bufio"
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+const (
+	appName          = "PulseDeck"
+	electronVersion  = "44.4.1"
+	electronSHA256   = "34bc07977d6c43b6514b956a5f2e3292255daa3838a49e6110f3fe19ffafb83f"
+	ytdlpVersion     = "2026.08.19"
+	ytdlpSHA256      = "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a"
+	ffmpegVersion    = "9.0.1"
+	ffmpegSHA256     = "fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9"
+	ffmpegArchiveURL = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.1-essentials_build.zip"
+	ffmpegMirrorURL  = "https://github.com/GyanD/codexffmpeg/releases/download/9.0.1/ffmpeg-9.0.1-essentials_build.zip"
+)
+
+//go:embed app
+var payload embed.FS
+
+func main() {
+	initSetupLanguage()
+	fmt.Println("============================================================")
+	fmt.Println(It("InstallerBanner"))
+	fmt.Println("============================================================")
+	fmt.Println(It("InstallerChooseFolder"))
+	fmt.Println(It("InstallerDefaultFolder"))
+	fmt.Println(It("InstallerSettingsLocation"))
+	fmt.Println()
+
+	desktop := desktopPath()
+	installDir, ok := chooseInstallDir()
+	if !ok {
+		fmt.Println(It("InstallerCancelled"))
+		time.Sleep(900 * time.Millisecond)
+		return
+	}
+	fmt.Printf(It("InstallerInstallFolder"), installDir)
+
+	if err := os.MkdirAll(installDir, 0755); err != nil {
+		fail(It("InstallerCannotCreateFolder"), err)
+		return
+	}
+
+	tempDir, err := os.MkdirTemp("", "PulseDeck-Setup-")
+	if err != nil {
+		fail(It("InstallerCannotCreateTemp"), err)
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	appExe := filepath.Join(installDir, appName+".exe")
+	electronReady := hasMatchingElectronRuntime(appExe, installDir)
+	if electronReady {
+		fmt.Printf(It("InstallerElectronPresent"), electronVersion)
+		fmt.Println(It("InstallerRuntimePresent"))
+	} else {
+		electronZip := filepath.Join(tempDir, "electron.zip")
+		electronURLs := []string{
+			fmt.Sprintf("https://github.com/electron/electron/releases/download/v%s/electron-v%s-win32-x64.zip", electronVersion, electronVersion),
+			fmt.Sprintf("https://downloads.sourceforge.net/project/electron.mirror/v%s/electron-v%s-win32-x64.zip", electronVersion, electronVersion),
+		}
+
+		fmt.Printf(It("InstallerDownloadElectron"), electronVersion)
+		if err := downloadWithFallback(electronURLs, electronZip, electronSHA256, "Electron"); err != nil {
+			fail(It("InstallerCannotDownloadRuntime"), err)
+			return
+		}
+
+		fmt.Println(It("InstallerExtractApp"))
+		if err := extractZip(electronZip, installDir); err != nil {
+			fail(It("InstallerCannotExtractElectron"), err)
+			return
+		}
+
+		oldExe := filepath.Join(installDir, "electron.exe")
+		_ = os.Remove(appExe)
+		if err := os.Rename(oldExe, appExe); err != nil {
+			fail(It("InstallerCannotPrepareExe"), err)
+			return
+		}
+		_ = os.Remove(filepath.Join(installDir, "resources", "default_app.asar"))
+	}
+
+	fmt.Println(It("InstallerInstallInterface"))
+	appTarget := filepath.Join(installDir, "resources", "app")
+	oldLanguages, err := preserveLanguageFiles(appTarget, installDir)
+	if err != nil {
+		fail(It("InstallerLanguageBackupFailed"), err)
+		return
+	}
+	_ = os.RemoveAll(appTarget)
+	if err := writeEmbeddedApp(appTarget); err != nil {
+		fail(It("InstallerCannotWriteApp"), err)
+		return
+	}
+	if err := restoreLanguageFiles(appTarget, oldLanguages); err != nil {
+		fail(It("InstallerLanguageRestoreFailed"), err)
+		return
+	}
+	for _, d := range []string{"music", "data", "tools"} {
+		if err := os.MkdirAll(filepath.Join(installDir, d), 0755); err != nil {
+			fail(It("InstallerCannotCreateWorkingFolders"), err)
+			return
+		}
+	}
+
+	if err := migrateLegacySettings(installDir, desktop); err != nil {
+		fmt.Printf(It("InstallerSettingsMigrationWarning"), err)
+	}
+
+	fmt.Printf(It("InstallerPrepareDownloader"), ytdlpVersion)
+	ytdlpPath := filepath.Join(installDir, "tools", "yt-dlp.exe")
+	if ok, _ := fileMatchesSHA256(ytdlpPath, ytdlpSHA256); ok {
+		fmt.Println(It("InstallerDownloaderPresent"))
+	} else {
+		ytdlpURL := fmt.Sprintf("https://github.com/yt-dlp/yt-dlp/releases/download/%s/yt-dlp.exe", ytdlpVersion)
+		if err := downloadWithFallback([]string{ytdlpURL}, ytdlpPath, ytdlpSHA256, "yt-dlp"); err != nil {
+			fmt.Printf(It("InstallerDownloaderWarning"), err)
+			fmt.Println(It("InstallerDownloaderRetry"))
+		}
+	}
+
+	fmt.Printf(It("InstallerPrepareFfmpeg"), ffmpegVersion)
+	if err := installFfmpeg(tempDir, filepath.Join(installDir, "tools")); err != nil {
+		fmt.Printf(It("InstallerFfmpegWarning"), err)
+		fmt.Println(It("InstallerFfmpegRetry"))
+	}
+
+	fmt.Println(It("InstallerCreateShortcut"))
+	if err := createShortcut(desktop, installDir, appExe); err != nil {
+		fmt.Printf(It("InstallerShortcutWarning"), err)
+		fmt.Printf(It("InstallerLaunchManually"), appName+".exe", installDir)
+	}
+
+	writeReadme(installDir)
+	fmt.Println()
+	fmt.Println(It("InstallerDone"))
+	_ = exec.Command(appExe).Start()
+	fmt.Println(It("InstallerCloseWindow"))
+	time.Sleep(1800 * time.Millisecond)
+}
+
+func hasMatchingElectronRuntime(appExe, installDir string) bool {
+	if !fileAtLeast(appExe, 20*1024*1024) || !fileAtLeast(filepath.Join(installDir, "resources", "electron.asar"), 1024*1024) {
+		return false
+	}
+	script := fmt.Sprintf(`(Get-Item -LiteralPath '%s').VersionInfo.ProductVersion`, psQuote(appExe))
+	out, err := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script).Output()
+	if err != nil {
+		return false
+	}
+	version := strings.TrimSpace(string(out))
+	return strings.HasPrefix(version, electronVersion)
+}
+
+func fileMatchesSHA256(path, expected string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return false, err
+	}
+	actual := hex.EncodeToString(h.Sum(nil))
+	return strings.EqualFold(actual, expected), nil
+}
+
+func defaultInstallParent() string {
+	if local := strings.TrimSpace(os.Getenv("LOCALAPPDATA")); local != "" {
+		return filepath.Join(local, "Programs")
+	}
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" {
+		return filepath.Join(home, "AppData", "Local", "Programs")
+	}
+	return filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local", "Programs")
+}
+
+func chooseInstallDir() (string, bool) {
+	parent := defaultInstallParent()
+	_ = os.MkdirAll(parent, 0755)
+	// FolderBrowserDialog keeps the installer dependency-free while still feeling
+	// like a normal Windows installer. The chosen directory is the parent in
+	// which the PulseDeck folder will be created.
+	script := fmt.Sprintf(`Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = '%s'; $d.ShowNewFolderButton = $true; $d.SelectedPath = '%s'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8; Write-Output $d.SelectedPath } else { exit 3 }`, psQuote(It("InstallerChooseFolderDialog")), psQuote(parent))
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", script)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 3 {
+			return "", false
+		}
+		fmt.Printf(It("InstallerFolderDialogWarning"), err)
+		return filepath.Join(parent, appName), true
+	}
+	selected := strings.TrimSpace(string(out))
+	if selected == "" {
+		return filepath.Join(parent, appName), true
+	}
+	selected = filepath.Clean(selected)
+	if strings.EqualFold(filepath.Base(selected), appName) {
+		return selected, true
+	}
+	return filepath.Join(selected, appName), true
+}
+
+func settingsProfilePath() string {
+	base := strings.TrimSpace(os.Getenv("APPDATA"))
+	if base == "" {
+		base = strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+	}
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(base, appName, "settings.json")
+}
+
+func copyFileIfMissing(src, dst string) error {
+	if src == "" || dst == "" {
+		return nil
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	tmp := dst + ".migrate.tmp"
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	syncErr := out.Sync()
+	closeErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmp)
+		return copyErr
+	}
+	if syncErr != nil {
+		_ = os.Remove(tmp)
+		return syncErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmp)
+		return closeErr
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+func migrateLegacySettings(installDir, desktop string) error {
+	dst := settingsProfilePath()
+	if dst == "" {
+		return nil
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	candidates := []string{
+		filepath.Join(installDir, "data", "settings.json"),
+		filepath.Join(desktop, appName, "data", "settings.json"),
+		filepath.Join(defaultInstallParent(), appName, "data", "settings.json"),
+	}
+	for _, src := range candidates {
+		if _, err := os.Stat(src); err == nil {
+			return copyFileIfMissing(src, dst)
+		}
+	}
+	return nil
+}
+
+func desktopPath() string {
+	ps := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "[Environment]::GetFolderPath('Desktop')")
+	if out, err := ps.Output(); err == nil {
+		p := strings.TrimSpace(string(out))
+		if p != "" {
+			return p
+		}
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		return filepath.Join(home, "Desktop")
+	}
+	return filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
+}
+
+func downloadWithFallback(urls []string, dest, expectedSHA, label string) error {
+	var errs []string
+	const attemptsPerSource = 2
+	for sourceIndex, url := range urls {
+		for attempt := 1; attempt <= attemptsPerSource; attempt++ {
+			if len(urls) > 1 || attempt > 1 {
+				fmt.Printf(It("InstallerDownloadAttempt"), label, sourceIndex+1, len(urls), attempt, attemptsPerSource)
+			}
+			if err := downloadFile(url, dest, expectedSHA, label); err == nil {
+				return nil
+			} else {
+				errs = append(errs, fmt.Sprintf(It("InstallerSourceError"), sourceIndex+1, attempt, err))
+				_ = os.Remove(dest)
+				if attempt < attemptsPerSource {
+					fmt.Printf(It("InstallerRetryConnection"))
+					time.Sleep(2 * time.Second)
+				}
+			}
+		}
+	}
+	return errors.New(strings.Join(errs, " | "))
+}
+
+func downloadFile(url, dest, expectedSHA, label string) error {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ResponseHeaderTimeout: 25 * time.Second,
+		IdleConnTimeout:       30 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "PulseDeck-Setup/2.6.4 (Windows 11)")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf(It("InstallerHttpError"), resp.StatusCode)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// A CDN can leave an already-open HTTP body hanging forever. Treat a lack of
+	// bytes for 30 seconds as a stalled transfer, close it, and let fallback/retry
+	// continue instead of freezing the installer indefinitely.
+	const stallTimeout = 30 * time.Second
+	var stalled atomic.Bool
+	watchdog := time.AfterFunc(stallTimeout, func() {
+		stalled.Store(true)
+		_ = resp.Body.Close()
+	})
+	defer watchdog.Stop()
+	kickWatchdog := func() {
+		watchdog.Stop()
+		watchdog.Reset(stallTimeout)
+	}
+
+	h := sha256.New()
+	total := resp.ContentLength
+	var done int64
+	buf := make([]byte, 1024*256)
+	lastPercent := -1
+	for {
+		n, rerr := resp.Body.Read(buf)
+		if n > 0 {
+			kickWatchdog()
+			if _, err := f.Write(buf[:n]); err != nil {
+				return err
+			}
+			if _, err := h.Write(buf[:n]); err != nil {
+				return err
+			}
+			done += int64(n)
+			if total > 0 {
+				pct := int(done * 100 / total)
+				if pct != lastPercent && (pct%2 == 0 || pct == 100) {
+					fmt.Printf(It("InstallerDownloadProgress"), label, pct, float64(done)/(1024*1024), float64(total)/(1024*1024))
+					lastPercent = pct
+				}
+			} else {
+				fmt.Printf(It("InstallerDownloadedBytes"), label, float64(done)/(1024*1024))
+			}
+		}
+		if rerr == io.EOF {
+			break
+		}
+		if rerr != nil {
+			fmt.Println()
+			if stalled.Load() {
+				return fmt.Errorf(It("InstallerDownloadStalled"), int(stallTimeout/time.Second))
+			}
+			return rerr
+		}
+	}
+	watchdog.Stop()
+	fmt.Println()
+	actual := hex.EncodeToString(h.Sum(nil))
+	if expectedSHA != "" && !strings.EqualFold(actual, expectedSHA) {
+		return fmt.Errorf(It("InstallerChecksumMismatch"), actual)
+	}
+	return f.Sync()
+}
+
+func extractZip(zipPath, dest string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	cleanDest := filepath.Clean(dest) + string(os.PathSeparator)
+	total := len(r.File)
+	for i, zf := range r.File {
+		target := filepath.Join(dest, zf.Name)
+		if !strings.HasPrefix(filepath.Clean(target)+func() string {
+			if zf.FileInfo().IsDir() {
+				return string(os.PathSeparator)
+			}
+			return ""
+		}(), cleanDest) && filepath.Clean(target) != filepath.Clean(dest) {
+			return fmt.Errorf(It("InstallerUnsafeArchivePath"), zf.Name)
+		}
+		if zf.FileInfo().IsDir() {
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return err
+		}
+		src, err := zf.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, zf.Mode())
+		if err != nil {
+			src.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, src)
+		closeErr := out.Close()
+		src.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if i%12 == 0 || i == total-1 {
+			fmt.Printf(It("InstallerExtractProgress"), i+1, total)
+		}
+	}
+	fmt.Println()
+	return nil
+}
+
+func fileAtLeast(path string, minSize int64) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Size() >= minSize
+}
+
+func installFfmpeg(tempDir, toolsDir string) error {
+	marker := filepath.Join(toolsDir, "ffmpeg.version")
+	if fileAtLeast(filepath.Join(toolsDir, "ffmpeg.exe"), 5*1024*1024) &&
+		fileAtLeast(filepath.Join(toolsDir, "ffprobe.exe"), 2*1024*1024) {
+		if raw, err := os.ReadFile(marker); err == nil && strings.TrimSpace(string(raw)) == ffmpegVersion {
+			fmt.Println(It("InstallerFfmpegPresent"))
+			return nil
+		}
+	}
+
+	archive := filepath.Join(tempDir, "ffmpeg.zip")
+	if err := downloadWithFallback([]string{ffmpegMirrorURL, ffmpegArchiveURL}, archive, ffmpegSHA256, "FFmpeg"); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(toolsDir, 0755); err != nil {
+		return err
+	}
+
+	zr, err := zip.OpenReader(archive)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+
+	wanted := map[string]string{
+		"ffmpeg.exe":  filepath.Join(toolsDir, "ffmpeg.exe"),
+		"ffprobe.exe": filepath.Join(toolsDir, "ffprobe.exe"),
+	}
+	found := map[string]bool{}
+	for _, zf := range zr.File {
+		base := strings.ToLower(filepath.Base(filepath.FromSlash(zf.Name)))
+		dest, ok := wanted[base]
+		if !ok || zf.FileInfo().IsDir() {
+			continue
+		}
+		src, err := zf.Open()
+		if err != nil {
+			return err
+		}
+		tmp := dest + ".installing"
+		out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		if err != nil {
+			src.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, src)
+		closeErr := out.Close()
+		src.Close()
+		if copyErr != nil {
+			_ = os.Remove(tmp)
+			return copyErr
+		}
+		if closeErr != nil {
+			_ = os.Remove(tmp)
+			return closeErr
+		}
+		_ = os.Remove(dest)
+		if err := os.Rename(tmp, dest); err != nil {
+			return err
+		}
+		found[base] = true
+	}
+	if !found["ffmpeg.exe"] || !found["ffprobe.exe"] {
+		return errors.New(It("InstallerFfmpegMissingFiles"))
+	}
+	return os.WriteFile(marker, []byte(ffmpegVersion+"\n"), 0644)
+}
+
+func writeEmbeddedApp(target string) error {
+	return fs.WalkDir(payload, "app", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel("app", filepath.FromSlash(p))
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return os.MkdirAll(target, 0755)
+		}
+		outPath := filepath.Join(target, rel)
+		if d.IsDir() {
+			return os.MkdirAll(outPath, 0755)
+		}
+		data, err := payload.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(outPath, data, 0644)
+	})
+}
+
+func psQuote(s string) string { return strings.ReplaceAll(s, "'", "''") }
+
+func createShortcut(desktop, installDir, appExe string) error {
+	shortcut := filepath.Join(desktop, appName+".lnk")
+	// Recreate the shortcut so Windows cannot keep the old first-install icon metadata.
+	_ = os.Remove(shortcut)
+	icon := filepath.Join(installDir, "resources", "app", "assets", "app-icons", "blue-violet-monitor.ico")
+	script := fmt.Sprintf(`$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut('%s'); $s.TargetPath='%s'; $s.WorkingDirectory='%s'; $s.IconLocation='%s'; $s.Description='%s'; $s.Save()`, psQuote(shortcut), psQuote(appExe), psQuote(installDir), psQuote(icon), psQuote(It("InstallerShortcutDescription")))
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func writeReadme(installDir string) {
+	text := It("InstallerReadme")
+	_ = os.WriteFile(filepath.Join(installDir, "README-PulseDeck.txt"), []byte(text), 0644)
+}
+
+func fail(message string, err error) {
+	fmt.Println()
+	fmt.Println(It("InstallerErrorPrefix"), message)
+	fmt.Println(err)
+	fmt.Println()
+	fmt.Println(It("InstallerEnterToClose"))
+	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+}
+
+// The installer reads the same embedded JSON catalogs as the application.
+// Format strings are catalog-owned; there is no Russian/default-string fallback.
+var setupLanguage = "ru"
+var setupCatalogs = map[string]map[string]json.RawMessage{}
+
+func initSetupLanguage() {
+	entries, _ := payload.ReadDir("app/languages")
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := payload.ReadFile("app/languages/" + entry.Name())
+		if err != nil {
+			continue
+		}
+		var c struct {
+			Messages map[string]json.RawMessage `json:"messages"`
+		}
+		if json.Unmarshal(data, &c) == nil {
+			setupCatalogs[strings.TrimSuffix(entry.Name(), ".json")] = c.Messages
+		}
+	}
+	if base := os.Getenv("APPDATA"); base != "" {
+		data, err := os.ReadFile(filepath.Join(base, appName, "settings.json"))
+		var prefs struct {
+			Language string `json:"language"`
+		}
+		if err == nil && json.Unmarshal(data, &prefs) == nil && prefs.Language != "" {
+			setupLanguage = prefs.Language
+		}
+	}
+	if value := os.Getenv("PULSEDECK_LANGUAGE"); value != "" {
+		setupLanguage = value
+	}
+	for i, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "--language=") {
+			setupLanguage = strings.TrimPrefix(arg, "--language=")
+		}
+		if arg == "--language" && i+2 < len(os.Args) {
+			setupLanguage = os.Args[i+2]
+		}
+	}
+}
+func It(key string) string {
+	key = strings.Trim(strings.TrimSpace(key), "\"'`")
+	for _, code := range []string{setupLanguage, "en"} {
+		raw := setupCatalogs[code][key]
+		var text string
+		if json.Unmarshal(raw, &text) == nil && strings.TrimSpace(text) != "" {
+			return text
+		}
+	}
+	return key
+}
+func preserveLanguageFiles(appTarget, installDir string) (map[string][]byte, error) {
+	files := map[string][]byte{}
+	source := filepath.Join(appTarget, "languages")
+	if _, err := os.Stat(source); os.IsNotExist(err) {
+		return files, nil
+	}
+	backup := filepath.Join(installDir, "data", "language-backups", time.Now().Format("20060102-150405.000"))
+	err := filepath.WalkDir(source, func(file string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		rel, err := filepath.Rel(source, file)
+		if err != nil {
+			return err
+		}
+		if ext := strings.ToLower(filepath.Ext(rel)); ext != ".json" && ext != ".svg" {
+			return nil
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		destination := filepath.Join(backup, rel)
+		if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(destination, data, 0644); err != nil {
+			return err
+		}
+		files[rel] = data
+		return nil
+	})
+	return files, err
+}
+func restoreLanguageFiles(appTarget string, files map[string][]byte) error {
+	for rel, old := range files {
+		destination := filepath.Join(appTarget, "languages", rel)
+		if current, err := os.ReadFile(destination); err == nil && strings.HasSuffix(rel, ".json") {
+			var shipped, previous map[string]json.RawMessage
+			if json.Unmarshal(current, &shipped) == nil && json.Unmarshal(old, &previous) == nil {
+				var nextMessages, oldMessages map[string]json.RawMessage
+				if json.Unmarshal(shipped["messages"], &nextMessages) == nil && json.Unmarshal(previous["messages"], &oldMessages) == nil && nextMessages != nil {
+					for key, value := range oldMessages {
+						nextMessages[key] = value
+					}
+					shipped["messages"], _ = json.Marshal(nextMessages)
+					if meta := previous["meta"]; len(meta) > 0 {
+						var m struct {
+							Name string `json:"name"`
+							Code string `json:"code"`
+						}
+						code := strings.TrimSuffix(filepath.Base(rel), ".json")
+						if json.Unmarshal(meta, &m) == nil && strings.TrimSpace(m.Name) != "" && len([]rune(m.Name)) <= 100 && (m.Code == "" || m.Code == code) {
+							shipped["meta"] = meta
+						}
+					}
+					old, _ = json.MarshalIndent(shipped, "", "  ")
+				} else {
+					continue
+				} // Invalid edited built-in stays safely in the backup.
+			} else {
+				continue
+			}
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(destination, old, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -1,0 +1,7 @@
+{
+  "source": "app/assets/app-icons/mono-monitor.png",
+  "sha256": "089382cb5a1f13ac5bb6ba65dc36775da5d3fa94a82b6f4d1215bc3052b7c6d1",
+  "original_svg_found": false,
+  "method": "Subpixel isocontours at intensity 160, polygon simplification <= 0.18 px on the 512px source",
+  "contours": 7
+}

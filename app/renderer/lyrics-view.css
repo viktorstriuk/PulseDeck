@@ -1,0 +1,245 @@
+/* The lyric canvas replaces only the library, never the authoritative audio element. */
+body.lyrics-open .content{display:none!important}
+body.lyrics-open .selection-toolbar,body.lyrics-open .playlist-selection-toolbar{display:none!important}
+.lyrics-trigger{flex:none;color:var(--text-2)}
+.volume-block .lyrics-trigger.active{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:12px}
+.lyrics-view{--ly-scale:1;--ly-text:#ddd;--ly-active:#fff;position:relative;isolation:isolate;flex:1;min-height:0;margin-bottom:96px;overflow:hidden;color:var(--ly-text);background:var(--ly-base,#302036);display:flex;flex-direction:column}
+.ly-backdrop{position:absolute;inset:0;z-index:-1;background:var(--ly-background,#302036);pointer-events:none}
+.ly-backdrop img{width:100%;height:100%;object-fit:cover;display:none}
+.lyrics-view[data-background=cover] .ly-backdrop img{display:block}
+#lyricsScrim{position:absolute;inset:0;background:var(--ly-scrim,#000);opacity:var(--ly-scrim-alpha,0);pointer-events:none}
+.ly-header{flex:none;display:flex;gap:24px;align-items:flex-start;justify-content:space-between;padding:26px clamp(24px,5vw,90px) 20px;z-index:2}
+.ly-heading{min-width:0;max-width:65%}.ly-eyebrow{font-size:10px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ly-heading h2{font-size:clamp(18px,1.8vw,28px);line-height:1.25;letter-spacing:-.035em;margin:7px 0;color:var(--ly-active);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ly-status{font-size:11px;display:block;min-height:16px}
+.ly-tools{display:flex;flex-shrink:0;align-items:center;gap:5px;padding-top:4px}
+.ly-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;border:0;border-radius:12px;background:transparent;color:inherit;cursor:pointer;transition:background .18s ease,transform .18s ease}
+.ly-icon:hover{background:color-mix(in srgb,currentColor 12%,transparent)}.ly-icon:active{transform:scale(.94)}
+.ly-icon svg,.ly-link svg,.ly-pill svg,.ly-resync svg{pointer-events:none;flex-shrink:0;display:block}
+.ly-icon:disabled,.ly-link:disabled,.ly-pill:disabled{opacity:.5;cursor:default;transform:none}
+.lyrics-view :focus-visible{outline:2px solid var(--ly-active);outline-offset:3px}
+.ly-scroller{min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ly-text) 35%,transparent) transparent;position:relative;scroll-behavior:auto;overflow-anchor:none;touch-action:pan-y}
+.ly-lines{padding:clamp(36px,9vh,110px) clamp(28px,9vw,150px) max(160px,34vh);max-width:1500px;margin:0 auto}
+.ly-line{font-size:calc(clamp(29px,4.2vw,64px)*var(--ly-scale));line-height:1.23;font-weight:750;letter-spacing:-.036em;text-align:left;padding:clamp(12px,2vh,25px) 0;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--ly-text);transition:color .18s ease;cursor:text;user-select:text;position:relative}
+.ly-line[role=button]{cursor:pointer}.ly-line[role=button]:hover{color:var(--ly-active)}
+.ly-line.ly-active{color:var(--ly-active)}
+.ly-word-mode .ly-line.ly-segmented.ly-active [data-segment]{color:var(--ly-text);transition:color .1s linear}
+.ly-word-mode .ly-line.ly-segmented.ly-active .ly-sung{color:var(--ly-active)}
+.ly-line.ly-active:before{content:'';position:absolute;width:4px;height:18px;left:-21px;top:calc(50% - 9px);border-radius:3px;background:var(--ly-active)}
+.ly-line.ly-past{font-weight:650}.ly-line.ly-untimed{font-weight:600}.ly-stanza{height:24px;padding:0}
+.ly-interlude{height:92px;display:flex;align-items:center;justify-content:flex-start}.ly-interlude svg{width:36px;height:36px;pointer-events:none}
+.ly-playing .ly-interlude.ly-active svg{animation:ly-note-breathe 1.7s ease-in-out infinite}
+@keyframes ly-note-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.ly-empty{position:absolute;inset:135px 22px 60px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+.ly-empty-icon{width:76px;height:76px;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:24px;display:grid;place-items:center;margin-bottom:22px;background:color-mix(in srgb,var(--ly-active) 7%,transparent)}
+.ly-empty h3{font-size:clamp(23px,3vw,36px);letter-spacing:-.04em;color:var(--ly-active);margin:0 0 12px}.ly-empty p{max-width:500px;font-size:14px;line-height:1.7;margin:0 0 24px}
+.ly-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.ly-pill{border:1px solid color-mix(in srgb,currentColor 30%,transparent);padding:11px 16px;border-radius:13px;display:inline-flex;align-items:center;gap:8px;background:transparent;color:inherit;font-weight:650;font-size:12px;cursor:pointer}.ly-pill:hover{background:color-mix(in srgb,var(--ly-active) 12%,transparent)}
+.ly-primary{background:var(--ly-active);border-color:transparent;color:var(--ly-base)}.ly-primary:hover{background:var(--ly-text)}
+.ly-resync{position:absolute;z-index:3;bottom:63px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;min-height:41px;padding:11px 18px;border-radius:99px;border:1px solid color-mix(in srgb,var(--ly-active) 30%,transparent);background:var(--ly-base);color:var(--ly-active);font-size:12px;font-weight:650;box-shadow:0 6px 22px #0003;cursor:pointer}
+.ly-bottom{margin-top:auto;flex:none;min-height:47px;display:flex;align-items:center;gap:20px;padding:10px clamp(24px,5vw,90px);font-size:11px}
+.ly-bottom #lyricsModeInfo{flex:1}.ly-link{display:inline-flex;gap:6px;align-items:center;white-space:nowrap;cursor:pointer;background:none;border:0;padding:5px 0;color:inherit;font:inherit}.ly-link:hover{text-decoration:underline;text-underline-offset:4px}
+body.lyrics-focus .titlebar,body.lyrics-focus #player{display:none!important}body.lyrics-focus .lyrics-view{margin-bottom:0}body.lyrics-focus .ly-heading,body.lyrics-focus .ly-tools>:not(#lyricsFocusBtn):not(#lyricsCloseBtn),body.lyrics-focus .ly-bottom{display:none}body.lyrics-focus .ly-header{position:absolute;right:0;padding:12px 18px;opacity:.15;transition:opacity .18s}body.lyrics-focus .ly-header:hover,body.lyrics-focus .ly-header:focus-within{opacity:1}body.lyrics-focus .ly-lines{padding-top:24vh;padding-bottom:45vh}body.lyrics-focus .ly-resync{bottom:24px}
+/* Native dialogs keep imported strings inert and sit above the app's regular overlays. */
+.ly-dialog{box-sizing:border-box;width:min(530px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:22px;padding:24px;box-shadow:0 20px 80px #0006;margin:auto;font:inherit}
+.ly-dialog::backdrop{background:#05070bab;backdrop-filter:blur(10px)}
+.ly-dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:17px}.ly-dialog header h2{font-size:22px;line-height:1.3;letter-spacing:-.03em;margin:5px 0 0;overflow-wrap:anywhere}.ly-dialog header .ly-icon{margin:-3px -6px 0 0;color:var(--text-2)}
+.ly-dialog .eyebrow{color:var(--accent);font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.14em}
+.ly-dialog button{font:inherit}.ly-dialog .button{min-height:36px;font-size:12px;gap:7px}.ly-dialog .button svg{flex:none}
+.ly-dialog :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.ly-help{font-size:12px;line-height:1.65;color:var(--text-2);margin:12px 0;overflow-wrap:anywhere}.ly-error{font-size:12px;line-height:1.6;color:#ff8090;white-space:pre-wrap;margin-top:10px}.ly-error:empty{display:none}
+.ly-dialog-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}.ly-dialog input:not([type=color]):not([type=range]):not([type=checkbox]),.ly-dialog select{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);padding:10px 12px;border-radius:10px;min-width:0;font:inherit;font-size:12px}
+.ly-dialog input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex:none;vertical-align:middle}
+.ly-dialog input[type=color]{width:42px;height:34px;padding:3px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface-2);cursor:pointer;flex:none}.ly-dialog input[type=color]::-webkit-color-swatch-wrapper{padding:0}.ly-dialog input[type=color]::-webkit-color-swatch{border:0;border-radius:6px}
+.ly-dialog input[type=range]{display:block;height:5px;margin:10px 0 24px;accent-color:var(--accent)}
+.ly-dialog .text-button{color:var(--text-2);border:0;background:transparent;font-size:12px;cursor:pointer;padding:8px}.ly-dialog .text-button:disabled{opacity:.4}
+.ly-editor{width:min(900px,calc(100vw - 32px))}.ly-editor-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:13px 0}.ly-editor-tools .ly-help{margin:0}.ly-editor-tools #lyricsEditorClock{font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto;color:var(--text-2)}
+#lyricsInput{display:block;box-sizing:border-box;width:100%;height:39vh;min-height:165px;resize:vertical;border:1px solid var(--line-strong);border-radius:14px;background:var(--surface-2);color:var(--text);font:13px/1.65 ui-monospace,Consolas,monospace;padding:16px;tab-size:2}
+.ly-warning{display:flex;align-items:flex-start;gap:9px;padding:12px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid var(--accent);border-radius:12px;font-size:12px;line-height:1.6;margin-top:12px}
+.ly-timing-row{padding:12px;border:1px solid var(--line);border-radius:12px;margin:8px 0;display:grid;grid-template-columns:minmax(140px,1fr) 135px 135px;gap:10px;align-items:start;background:var(--surface-2)}
+.ly-timing-row.current{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.ly-timing-row>button{background:none;border:0;color:var(--text);cursor:pointer;text-align:left;font:inherit;font-size:13px;line-height:1.5;padding:8px 0;white-space:pre-wrap}
+.ly-timing-row>label{font-size:10px;color:var(--text-2);display:flex;flex-wrap:wrap;gap:5px}.ly-timing-row input:not([type=checkbox]){width:100%;font-size:11px!important;padding:7px!important}.ly-tap{border:0;background:none;color:var(--accent);cursor:pointer;font-size:10px!important;padding:3px 0}.ly-timing-row .ly-no-gap{grid-column:1/-1;align-items:center}.ly-no-gap input{margin:0 5px 0 0}
+#lyricsTimingRows{max-height:40vh;overflow:auto;padding:2px 3px}
+.ly-theme-preview{border-radius:17px;min-height:128px;padding:24px;display:flex;justify-content:space-between;align-items:flex-end;background-position:center!important;border:1px solid var(--line)}.ly-theme-preview b{font-size:28px;line-height:1.15;letter-spacing:-.04em}.ly-theme-preview span{font-size:10px;font-weight:700}
+.ly-settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;margin:17px 0 10px}.ly-settings-row output{font-variant-numeric:tabular-nums;color:var(--text-2)}.ly-check{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:650;margin-top:18px}
+.ly-gradient-colors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ly-gradient-stop{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}.ly-gradient-stop span{font-size:10px;flex:1;color:var(--text-2)}.ly-gradient-stop button{background:none;border:0;color:var(--text-2);padding:4px;cursor:pointer}
+.ly-presets{display:flex;gap:8px;margin:12px 0}.ly-preset{height:25px;flex:1;border:1px solid var(--line-strong);border-radius:7px;cursor:pointer}
+.ly-search{width:min(700px,calc(100vw - 32px))}#lyricsSearchForm{display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end}#lyricsSearchForm label{display:flex;flex-direction:column;gap:7px;font-size:11px;color:var(--text-2)}
+.ly-result{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px;border:1px solid var(--line);border-radius:13px;margin:9px 0;background:var(--surface-2)}.ly-result>div{min-width:0}.ly-result strong{display:block;font-size:13px;overflow-wrap:anywhere}.ly-result span{display:block;font-size:11px;line-height:1.6;color:var(--text-2);margin-top:4px}.ly-result .button{flex:none}#lyricsSearchResults{max-height:38vh;overflow:auto}
+@media(max-width:900px){.ly-header{padding:20px 24px 15px;gap:12px}.ly-heading{max-width:54%}.ly-tools{gap:0}.ly-icon{width:34px;height:34px;border-radius:10px}.ly-lines{padding-inline:50px}.ly-line{font-size:calc(38px*var(--ly-scale))}.ly-bottom{padding-inline:24px;gap:14px}.ly-empty{inset:125px 12px 60px}.ly-timing-row{grid-template-columns:1fr 115px 115px}}
+@media(max-width:820px){.player{grid-template-columns:minmax(140px,1fr) minmax(230px,1.3fr) 38px;gap:10px;padding-inline:15px}.volume-block{display:flex!important;width:36px}.volume-block>:not(#lyricsBtn){display:none}.ly-header{flex-wrap:wrap;gap:6px;padding-top:13px}.ly-heading{max-width:100%;flex:1 1 100%}.ly-tools{padding:0;position:absolute;right:16px;top:72px}.ly-heading h2{font-size:18px}.ly-status{max-width:calc(100% - 215px);font-size:10px}.ly-lines{padding-inline:34px;padding-top:40px}.ly-line{font-size:calc(30px*var(--ly-scale))}.ly-bottom #lyricsModeInfo{display:none}.ly-bottom{justify-content:space-between;gap:9px;font-size:10px}.ly-empty h3{font-size:25px}.ly-empty p{font-size:12px}.ly-dialog{padding:18px;max-height:calc(100vh - 24px)}.ly-timing-row{grid-template-columns:1fr 1fr}.ly-timing-row>button{grid-column:1/-1}#lyricsSearchForm{grid-template-columns:1fr 1fr}#lyricsSearchForm .button{grid-column:1/-1}.ly-dialog header h2{font-size:20px}}
+@media(max-height:620px){.ly-header{padding-block:13px}.ly-heading h2{font-size:19px}.ly-status{font-size:10px}.ly-empty-icon{height:50px;width:50px;margin-bottom:12px}.ly-empty h3{font-size:24px}.ly-empty{inset:95px 12px 45px;padding:10px}.ly-empty p{margin-bottom:12px}.ly-lines{padding-top:32px}.ly-line{font-size:calc(32px*var(--ly-scale));padding-block:14px}.ly-bottom{min-height:37px;padding-block:6px}.ly-resync{bottom:47px}.ly-interlude{height:64px}}
+@media(prefers-reduced-motion:reduce){.lyrics-view *{transition:none!important;animation:none!important;scroll-behavior:auto!important}.ly-dialog *{transition:none!important;animation:none!important}}
+/* 2.6.7 — quieter controls, independent timing preferences and word authoring. */
+.ly-microphone{display:inline-block;flex:none;background:currentColor;mask:url('../assets/player-icons/lyrics-microphone.svg') center/contain no-repeat;-webkit-mask:url('../assets/player-icons/lyrics-microphone.svg') center/contain no-repeat;pointer-events:none}
+.ly-export-actions{display:flex;align-items:center;justify-content:center;gap:20px;font-size:11px;flex-wrap:wrap}
+.ly-empty-secondary{margin-top:17px;min-height:28px}.ly-empty-secondary .ly-link{opacity:.82}.ly-empty-secondary .ly-link:hover{opacity:1}
+.ly-empty-secondary .ly-link:disabled{opacity:.38}
+.lyrics-view:not(.ly-has-text) .ly-bottom{visibility:hidden}
+body.lyrics-focus #player{display:grid!important;z-index:35}body.lyrics-focus .lyrics-view{margin-bottom:96px}
+body.lyrics-focus .ly-empty{inset:60px 20px 20px}
+.ly-dialog[open]{animation:ly-dialog-enter .18s cubic-bezier(.2,.75,.3,1)}
+.ly-dialog[open]::backdrop{animation:ly-backdrop-enter .16s ease-out}
+@keyframes ly-dialog-enter{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes ly-backdrop-enter{from{opacity:0}to{opacity:1}}
+.ly-settings-section:not(.hidden),.ly-word-panel:not(.hidden){animation:ly-reveal .16s ease-out}
+@keyframes ly-reveal{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.ly-dialog button{transition:background-color .16s,color .16s,border-color .16s,opacity .16s,transform .12s}
+.ly-dialog button:active:not(:disabled){transform:translateY(1px)}
+.ly-dialog input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;display:inline-grid;place-content:center;width:21px;height:21px;margin:0;flex:0 0 21px;border:1.5px solid var(--line-strong);border-radius:50%;background:var(--surface-2);cursor:pointer;transition:background .16s,border-color .16s,box-shadow .16s}
+.ly-dialog input[type=checkbox]::before{content:'';width:11px;height:11px;background:var(--text);mask:url('../assets/player-icons/select.svg') center/contain no-repeat;-webkit-mask:url('../assets/player-icons/select.svg') center/contain no-repeat;transform:scale(.35);opacity:0;transition:transform .17s cubic-bezier(.2,1.4,.4,1),opacity .12s}
+.ly-dialog input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+.ly-dialog input[type=checkbox]:checked::before{opacity:1;transform:scale(1)}
+.ly-dialog input[type=checkbox]:hover{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 12%,transparent)}
+.ly-dialog input[type=checkbox]:disabled{cursor:default;opacity:.45}
+.ly-dialog input[type=checkbox]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.ly-dialog .ly-check{display:flex;align-items:center;gap:10px;cursor:pointer;line-height:1.5}
+.ly-theme-preview{position:relative}#lyricsSettingsMode{position:absolute;right:12px;top:12px;color:inherit;background:#80808025}
+.ly-settings-row select{max-width:56%;cursor:pointer}.ly-settings-section{margin:0;padding:0;border:0}
+.ly-timing-row{grid-template-columns:minmax(180px,1fr) 182px 182px;gap:12px;padding:15px;border-radius:16px;transition:border-color .16s,background-color .16s;align-items:start}
+.ly-timing-row.current{box-shadow:inset 0 0 0 1px var(--accent)}
+.ly-timing-copy{min-width:0}.ly-timing-line-select{font-size:10px!important;color:var(--text-3);border:0;background:none;padding:0 0 10px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase}
+.ly-word-tokens{font-size:16px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.ly-word-token{font:inherit!important;background:transparent;color:var(--text);border:0;border-radius:5px;cursor:pointer;padding:2px 0;white-space:pre-wrap;vertical-align:baseline;display:inline;text-decoration-skip-ink:auto}
+.ly-word-token:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+.ly-word-token.has-time{text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px}
+.ly-word-token.chosen{color:var(--accent);background:color-mix(in srgb,var(--accent) 17%,transparent);text-decoration-color:var(--accent)}
+.ly-timing-cell{min-width:0;display:flex;flex-direction:column;gap:5px}.ly-timing-cell>span{font-size:10px;color:var(--text-3)}
+.ly-time-field{min-width:0;max-width:100%}.ly-time-segments{display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);height:39px;padding:3px 5px;gap:1px;box-sizing:border-box}
+.ly-time-segments:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 15%,transparent)}
+.ly-dialog .ly-time-part{appearance:none;min-width:0!important;flex:0 1 30px;width:30px!important;padding:3px 1px!important;text-align:center;border:0!important;border-radius:4px!important;background:transparent!important;font:13px/1.2 ui-monospace,Consolas,monospace!important;font-variant-numeric:tabular-nums;color:var(--text);height:27px}
+.ly-dialog .ly-time-part[data-part=minutes]{flex-basis:36px;width:36px!important}.ly-dialog .ly-time-part[data-part=milliseconds]{flex-basis:34px;width:34px!important}
+.ly-dialog .ly-time-part:focus{background:color-mix(in srgb,var(--accent) 12%,var(--surface))!important;outline:none}
+.ly-time-part::selection{background:color-mix(in srgb,var(--accent) 42%,var(--surface));color:var(--text)}
+.ly-time-part::placeholder{color:var(--text-3)}.ly-time-field.is-empty .ly-time-colon{color:var(--text-3)}
+.ly-time-fraction{display:none}.ly-time-field.has-milliseconds .ly-time-fraction{display:block}
+.ly-time-colon,.ly-time-fraction:not(input){font:12px ui-monospace,Consolas,monospace;flex:none}
+.ly-time-steppers{display:flex;flex-direction:column;flex:none;width:13px;margin-left:auto}
+.ly-time-steppers button{border:0;background:none;color:var(--text-3);font-size:14px!important;line-height:12px;padding:0;cursor:pointer;min-height:12px}
+.ly-time-steppers button:hover{color:var(--accent)}
+.ly-time-precision,.ly-time-clear{border:0;border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer;padding:4px 3px;font-size:10px!important;flex:none;min-width:22px}
+.ly-time-clear{font-size:17px!important;min-width:18px;padding:2px}.ly-time-clear:disabled{opacity:.25;cursor:default}
+.ly-time-precision[aria-pressed=true]{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.ly-time-hint{font-size:9px!important;color:var(--text-3);display:block;min-height:12px;margin-top:3px;font-variant-numeric:tabular-nums}
+.ly-tap{border:0;background:none;color:var(--accent);font-size:11px!important;text-align:left;cursor:pointer;padding:4px 0;align-self:flex-start}
+.ly-no-gap{grid-column:1/-1;font-size:10px;gap:8px!important}.ly-no-gap input[type=checkbox]{width:18px;height:18px;flex-basis:18px}
+.ly-word-panel{grid-column:1/-1;display:grid;grid-template-columns:minmax(140px,1fr) 200px;align-items:center;gap:9px 14px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.ly-word-heading{min-width:0;overflow-wrap:anywhere}.ly-word-heading strong{display:block;font-size:17px;color:var(--accent)}.ly-word-heading small{font-size:10px;color:var(--text-3)}
+.ly-word-actions{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap}.ly-word-actions button:disabled{opacity:.35;cursor:default}.ly-word-panel .ly-help{grid-column:1/-1;margin:0;font-size:10px}
+#lyricsTimingRows{max-height:47vh;overflow:auto;overflow-anchor:none;scrollbar-gutter:stable;padding:2px}
+@media(max-width:850px){.ly-timing-row{grid-template-columns:1fr 1fr}.ly-timing-copy{grid-column:1/-1}.ly-timing-row .ly-time-segments{max-width:235px}.ly-word-panel{grid-template-columns:1fr 185px}}
+@media(max-width:520px){.ly-word-panel{grid-template-columns:1fr}.ly-time-precision{padding:4px 1px;min-width:20px}.ly-dialog{padding:18px}.ly-timing-row{padding:10px;gap:10px}.ly-empty-secondary{margin-top:12px}.ly-export-actions{gap:14px}}
+@media(prefers-reduced-motion:reduce){.ly-dialog[open],.ly-dialog[open]::backdrop,.ly-settings-section,.ly-word-panel{animation:none!important}.ly-dialog button,.ly-dialog input[type=checkbox],.ly-dialog input[type=checkbox]::before,.ly-timing-row{transition:none!important}}
+
+body.lyrics-focus .ly-header{top:0;opacity:.7}body.lyrics-focus .ly-tools{position:static;padding:0}body.lyrics-focus .ly-header:hover,body.lyrics-focus .ly-header:focus-within{opacity:1}
+
+.ly-timing-row .ly-no-gap{margin-top:0;margin-bottom:0}
+/* 2.6.8 — a compact editing workbench with a stable playback dock. */
+.ly-autosave{display:block;text-align:right;font-size:11px;color:var(--text-3);margin-top:12px;min-height:16px}
+.ly-studio[open]{display:flex;flex-direction:column;width:min(1120px,calc(100vw - 32px));height:min(880px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);overflow:hidden;padding:22px 24px;gap:0}
+.ly-studio>header{flex:none;margin-bottom:8px;align-items:center}.ly-studio>header>div{min-width:0}.ly-studio>header h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:21px;letter-spacing:-.02em}.ly-studio>header .eyebrow{font-size:9px}
+.ly-studio-intro{font-size:11px;color:var(--text-3);line-height:1.4;margin:0 0 12px;flex:none}
+.ly-studio-top{flex:none;display:flex;gap:6px;align-items:center;margin:0 0 10px!important;padding:0;min-height:35px}
+.ly-studio-top .button,.ly-studio .ly-auto-button{min-height:34px;padding:8px 12px;font-size:12px;border-radius:9px}
+.ly-studio .ly-compact{display:inline-flex;width:34px!important;height:34px!important;min-height:34px;padding:0!important;justify-content:center;align-items:center;border-radius:9px;background:transparent;border-color:transparent}
+.ly-studio .ly-compact:hover{background:var(--surface-2);border-color:var(--line-strong)}
+.ly-studio .ly-icon{width:32px;height:32px;min-width:32px;border-radius:8px;font-size:17px;color:var(--text-2)}
+.ly-studio .ly-icon[aria-pressed=true]{color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent)}
+.ly-studio .ly-icon:focus-visible,.ly-studio button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ly-text-menu-wrap{position:relative}.ly-studio-menu{position:absolute;left:0;top:calc(100% + 7px);width:238px;padding:6px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface-2);box-shadow:0 14px 40px #0006;z-index:20;animation:ly-reveal .12s ease-out}
+.ly-studio-menu button{width:100%;border:0;background:none;border-radius:7px;display:flex;align-items:center;gap:10px;color:var(--text);padding:10px 9px;text-align:left;cursor:pointer;font-size:12px}
+.ly-studio-menu button:hover{background:var(--surface-3)}.ly-studio-menu .ly-danger{color:#ef7e86}.ly-studio-menu button:disabled{opacity:.38;cursor:default}
+.ly-studio-player{flex:none;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:9px 14px 0;margin-bottom:12px;overflow:hidden}
+.ly-studio-transport{display:flex;align-items:center;gap:8px}.ly-studio-transport #lyricsEditorPlay{color:var(--text);background:color-mix(in srgb,var(--text) 8%,transparent);border:0;border-radius:50%}
+.ly-studio-transport #lyricsEditorClock{font-size:11px;color:var(--text);font-variant-numeric:tabular-nums;min-width:75px;display:inline-block;margin-inline:5px}
+.ly-studio-transport #lyricsEditorDuration{margin-left:auto;color:var(--text-3);font:11px ui-monospace,Consolas,monospace}
+.ly-studio .ly-speed-label select{width:70px;min-width:70px;padding:5px 6px;font-size:11px;border:0;background:transparent;color:var(--text-2)}
+.ly-studio-wave{height:35px;position:relative;display:flex;align-items:center;margin-top:5px}.ly-studio-wave canvas{position:absolute;width:100%;height:34px;opacity:.38;pointer-events:none}
+.ly-dialog #lyricsEditorSeek{position:relative;z-index:1;appearance:none;-webkit-appearance:none;width:100%;height:28px;padding:0;margin:0;border:0;background:transparent;cursor:pointer}
+#lyricsEditorSeek::-webkit-slider-runnable-track{height:3px;border-radius:4px;background:linear-gradient(to right,var(--accent) 0 var(--ly-position,0%),var(--line-strong) var(--ly-position,0%) 100%)}
+#lyricsEditorSeek::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:11px;height:11px;border:0;border-radius:50%;background:var(--text);margin-top:-4px;box-shadow:0 0 0 3px color-mix(in srgb,var(--surface) 65%,transparent)}
+.ly-draft-preview{min-height:48px;max-height:85px;padding:10px 8px 13px;text-align:center;white-space:pre-wrap;overflow-y:auto;font-size:20px;line-height:1.25;font-weight:650;color:var(--text);border-top:1px solid var(--line);margin-top:3px;scrollbar-width:thin}
+.ly-draft-preview span{color:var(--text-3)}.ly-draft-preview .ly-draft-sung{color:var(--text)}
+.ly-studio #lyricsTiming{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.ly-studio-ribbon{display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex:none;padding:0 0 8px;border-bottom:1px solid var(--line)}
+.ly-studio-history{display:flex;gap:2px;padding-right:7px;border-right:1px solid var(--line)}
+#lyricsEditorSelection{font-size:11px;color:var(--text-2);margin:0 auto 0 5px;min-width:78px;cursor:default}
+.ly-shift-quick{display:flex;gap:0;padding-inline:5px;border-left:1px solid var(--line);border-right:1px solid var(--line)}.ly-shift-quick .ly-icon{font-size:11px;font-weight:600;width:38px}
+.ly-studio #lyricsAutoSync{margin-left:5px;color:var(--accent)}
+.ly-studio .ly-stamp-bar{display:flex;align-items:center;flex:none;gap:12px;margin:7px 0 9px;padding:0}
+.ly-studio #lyricsStampNext{padding:6px 9px;min-height:30px;border-radius:8px;font-size:11px;flex:none;background:transparent}
+.ly-studio .ly-stamp-bar .ly-help{font-size:10px;line-height:1.4;flex:1;margin:0;color:var(--text-3)}
+.ly-studio #lyricsTimingRows{min-height:80px;max-height:none;flex:1;overflow:auto;padding:2px 4px 12px 2px;scrollbar-width:thin;overscroll-behavior:contain}
+.ly-studio .ly-timing-row{position:relative;grid-template-columns:minmax(120px,1fr) 175px 27px;gap:7px 10px;padding:10px 11px 7px;margin-bottom:7px;border-radius:11px;min-height:82px;background:var(--surface-2)}
+.ly-studio .ly-timing-copy{grid-column:1;grid-row:1}.ly-studio .ly-timing-cell:not(.ly-end-cell){grid-column:2;grid-row:1}
+.ly-studio [data-select-row]{width:16px;height:16px;vertical-align:middle;margin:-2px 7px 0 0;flex-basis:16px}.ly-studio [data-select-row]::before{width:9px;height:9px}
+.ly-studio .ly-timing-line-select{padding:0 0 5px;font-size:9px!important;letter-spacing:.08em;color:var(--text-3)}
+.ly-studio .ly-word-tokens{font-size:17px;line-height:1.55}.ly-studio .ly-word-token{padding:1px 0}
+.ly-studio .ly-time-segments{height:32px;border-radius:8px}.ly-studio .ly-time-hint{font-size:9px!important;min-height:10px}
+.ly-studio .ly-timing-cell>span{font-size:9px}.ly-studio .ly-tap{padding:0;font-size:10px!important}
+.ly-studio .ly-end-cell,.ly-studio .ly-no-gap{display:none}.ly-studio .ly-row-details .ly-end-cell{display:flex;grid-column:2;grid-row:2}.ly-studio .ly-row-details .ly-no-gap{display:flex;grid-column:1;grid-row:2;align-self:center}
+.ly-studio .ly-row-more{grid-column:3;grid-row:1;width:27px;min-width:27px;height:27px;margin-top:15px}
+.ly-studio .ly-timing-row.current{border-color:var(--line-strong);box-shadow:none}
+.ly-studio .ly-row-playing::before{content:'';position:absolute;left:0;top:15px;bottom:15px;width:3px;border-radius:3px;background:var(--accent);pointer-events:none}
+.ly-studio .ly-edit-selected{background:color-mix(in srgb,var(--accent) 9%,var(--surface-2));border-color:var(--accent)}
+.ly-studio .ly-word-selected{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent);border-radius:4px;text-decoration-color:var(--accent)}
+.ly-studio .ly-word-panel{grid-template-columns:minmax(100px,1fr) 195px;padding:10px 12px;gap:6px 10px}.ly-studio .ly-word-heading strong{font-size:15px}.ly-studio .ly-word-actions{gap:13px}.ly-studio .ly-word-panel .ly-help{display:none}
+.ly-studio #lyricsInput{flex:1;min-height:100px;max-height:none;height:auto;resize:none;font:13px/1.65 ui-monospace,Consolas,monospace;margin:0 0 8px}
+.ly-studio #lyricsImportSummary{flex:none;max-height:45px;overflow:auto;font-size:10px;line-height:1.45;color:var(--text-3);margin:7px 0 0}
+.ly-studio #lyricsEditorError{flex:none;font-size:11px;line-height:1.5;max-height:50px;overflow:auto;min-height:0;margin:4px 0 0}
+.ly-studio #lyricsEditorError:empty{display:none}.ly-studio .ly-studio-footer{flex:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);gap:9px}.ly-studio-footer .button{padding:9px 16px;min-height:36px;border-radius:10px;font-size:12px}
+.ly-rhythm-range{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 18px}.ly-rhythm-range label{font-size:11px;line-height:1.8}.ly-rhythm-range label>span{display:block}.ly-rhythm-dialog progress{width:100%;height:4px;accent-color:var(--accent);border:0}
+#lyricsRhythmPreview{font-size:12px;max-height:240px;overflow:auto;margin-top:14px}#lyricsRhythmPreview>div{display:flex;gap:18px;padding:9px 0;border-top:1px solid var(--line)}#lyricsRhythmPreview time{font:11px ui-monospace,Consolas,monospace;color:var(--accent);flex:none;width:75px}
+.ly-shift-dialog{width:430px}.ly-shift-dialog input[type=number]{width:120px;max-width:45%;text-align:right;font-variant-numeric:tabular-nums}
+.ly-result .ly-match-note{font-size:10px;color:var(--text-3);display:block;margin-top:4px}
+@media(max-width:850px){.ly-studio[open]{width:calc(100vw - 20px);height:calc(100dvh - 20px);max-height:calc(100dvh - 20px);padding:16px}.ly-studio>header h2{font-size:18px}.ly-studio-intro{font-size:10px;margin-bottom:7px}.ly-studio .ly-timing-row{grid-template-columns:minmax(120px,1fr) 172px 26px}.ly-studio .ly-timing-copy{grid-column:1}.ly-studio .ly-word-tokens{font-size:15px}.ly-studio-ribbon{gap:2px}.ly-studio #lyricsAutoSync{margin-left:0;padding:6px 9px}.ly-studio #lyricsEditorSelection{min-width:65px;font-size:10px;margin-left:3px}.ly-studio .ly-icon{width:29px;min-width:29px;height:29px}.ly-shift-quick .ly-icon{width:33px}.ly-studio .ly-stamp-bar .ly-help{font-size:9px}.ly-draft-preview{font-size:17px;min-height:42px;padding:8px}.ly-studio-player{margin-bottom:8px}.ly-studio #lyricsTimingRows{min-height:60px}}
+@media(max-width:590px){.ly-studio .ly-timing-row{grid-template-columns:minmax(80px,1fr) 160px 24px;padding:8px;gap:7px}.ly-studio .ly-time-precision{min-width:19px}.ly-studio .ly-time-clear{min-width:15px}.ly-studio .ly-word-panel{grid-template-columns:1fr}.ly-studio .ly-word-tokens{font-size:14px}.ly-studio .ly-stamp-bar .ly-help{display:none}.ly-studio>header h2{font-size:16px}.ly-studio-intro{display:none}.ly-studio .ly-studio-top{margin-bottom:7px!important}.ly-studio .ly-studio-ribbon #lyricsEditorSelection{min-width:calc(100% - 95px)}.ly-studio .ly-studio-ribbon{justify-content:space-between}.ly-studio .ly-time-part{font-size:11px!important}.ly-studio .ly-studio-transport{gap:3px}.ly-studio-transport #lyricsEditorClock{font-size:10px;min-width:65px;margin-inline:0}.ly-studio .ly-speed-label select{min-width:57px;width:57px;padding:4px}.ly-studio #lyricsSplitLine{font-size:15px}}
+@media(max-height:650px){.ly-studio[open]{padding-top:12px;padding-bottom:12px}.ly-studio-intro{display:none}.ly-studio>header{margin-bottom:7px}.ly-studio-player{padding-top:6px}.ly-studio-wave{height:26px;margin-top:0}.ly-studio .ly-stamp-bar{margin:5px 0}.ly-draft-preview{min-height:32px;padding:6px;font-size:16px}.ly-studio .ly-studio-footer{padding-top:7px;margin-top:7px}.ly-studio #lyricsImportSummary{max-height:27px;font-size:9px}.ly-studio .ly-timing-row{min-height:75px}}
+
+/* Compact selection anchors keep the row caption optically separated. */
+.ly-studio .ly-timing-copy > input[data-select-row]{margin:0 7px 0 0;vertical-align:middle;}
+.ly-studio #lyricsEditorSelection{font-size:12px;padding:5px 7px;border-radius:8px;white-space:nowrap;}
+.ly-studio #lyricsEditorSelection:hover{background:var(--surface-hover,rgba(128,128,128,.12));}
+
+/* Short windows prioritize the timeline and editable rows over help text. */
+@media(max-height:720px){
+ .ly-studio .ly-studio-top{margin-bottom:6px!important}.ly-studio .ly-studio-top .button{min-height:30px;padding:5px 9px}
+ .ly-studio-player{padding:7px 10px;margin-bottom:7px}.ly-studio-transport{min-height:28px}.ly-studio-wave{height:20px}
+ .ly-studio .ly-draft-preview{min-height:26px;padding:3px 5px;max-height:40px}
+ .ly-studio .ly-studio-ribbon{padding-bottom:5px}.ly-studio .ly-stamp-bar{margin:3px 0 6px}
+ .ly-studio .ly-stamp-bar .ly-help{display:none}.ly-studio #lyricsStampNext{min-height:26px;padding:3px 8px}
+ .ly-studio .ly-timing-row{min-height:70px;padding:7px 9px 4px;gap:4px 9px}
+ .ly-studio .ly-word-panel{padding:7px 9px;gap:3px 8px}.ly-studio .ly-word-actions .text-button{padding:3px 0}
+ .ly-studio .ly-timing-cell .ly-time-hint:empty{display:none}
+}
+.ly-studio #lyricsEditorSelection{cursor:pointer}
+
+/* 2.8.2: immutable scene layers. Only their opacity is animated, never gradients,
+   filter radius, image size, canvas pixels or the audio/lyrics clock. */
+.ly-backdrop {background:var(--ly-base,#302036);}
+.ly-backdrop > #lyricsCover,.ly-backdrop > #lyricsScrim {display:none!important;}
+.ly-scene {position:absolute;inset:0;opacity:0;pointer-events:none;overflow:hidden;}
+.ly-scene img {display:block!important;width:100%;height:100%;object-fit:cover;}
+.ly-scene img:not([src]) {visibility:hidden;}
+.ly-scene-scrim {position:absolute;inset:0;pointer-events:none;}
+.ly-transitioning .ly-scene {will-change:opacity;}
+#lyricsEditor .ly-bottom {padding:12px 0 0;margin-top:12px;border-top:1px solid var(--line);flex-wrap:wrap;gap:12px;}
+#lyricsEditor .ly-bottom #lyricsModeInfo {font-size:10px;color:var(--text-3);}
+#lyricsEditor .ly-export-actions {gap:14px;}
+.ly-resync {bottom:20px;}
+/* One geometry change at rest/wake; the animation itself is transform + opacity.
+   Keep the background full-window during the hidden state, with no reserved bar. */
+body.lyrics-open :is(.titlebar,#player,.ly-header,#toastStack) {transition:opacity .22s ease,transform .22s ease;}
+body.lyrics-idle .lyrics-view {position:fixed;inset:0;margin:0!important;z-index:19;}
+body.lyrics-idle .titlebar {opacity:0;transform:translateY(-100%);pointer-events:none;}
+body.lyrics-idle #player {opacity:0;transform:translateY(100%);pointer-events:none;}
+body.lyrics-idle .ly-header {position:absolute;top:0;left:0;right:0;opacity:0!important;transform:translateY(-22px);pointer-events:none;}
+body.lyrics-idle #toastStack {opacity:0;transform:translateX(16px);pointer-events:none;}
+body.lyrics-idle .ly-resync {opacity:0;pointer-events:none;}
+body.lyrics-idle .ly-scroller {scrollbar-width:none;}
+body.lyrics-idle .ly-scroller::-webkit-scrollbar {display:none;}
+body.lyrics-idle .ly-line.ly-active::before {display:none;}
+body.lyrics-idle,body.lyrics-idle .lyrics-view,body.lyrics-idle .lyrics-view * {cursor:none!important;}
+@media(prefers-reduced-motion:reduce){body.lyrics-open :is(.titlebar,#player,.ly-header,#toastStack){transition:none!important}body.lyrics-idle :is(.titlebar,#player,.ly-header,#toastStack){transform:none}}
+/* A hidden stationary cursor must not highlight a second, inactive lyric row. */
+body.lyrics-idle .ly-line[role=button]:not(.ly-active):hover {color:var(--ly-text);}

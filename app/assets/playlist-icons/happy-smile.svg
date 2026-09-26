@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" color="#000" width="24" height="24"><g transform="translate(2.100017 2.100000) scale(0.03867180)"><g>
+	<g>
+		<g>
+			<path d="M437.014,74.983c-99.978-99.978-262.073-99.978-362.031,0.004c-99.978,99.954-99.978,262.05,0.002,362.029     c99.956,99.98,262.052,99.98,362.031,0S536.996,174.941,437.014,74.983z M406.846,406.846     c-83.317,83.317-218.394,83.317-301.69,0.002c-83.318-83.318-83.318-218.396-0.003-301.691     c83.299-83.318,218.377-83.318,301.693-0.002C490.163,188.452,490.163,323.529,406.846,406.846z" fill="currentColor" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+			<path d="M135.322,195.663c-8.331-8.331-21.839-8.331-30.17,0c-54.581,54.581-44.043,136.975,15.083,196.101     s141.52,69.664,196.101,15.083c8.331-8.331,8.331-21.839,0-30.17L135.322,195.663z M150.405,361.594     c-37.451-37.451-48.152-83.597-28.176-118.685L269.09,389.77C234.002,409.746,187.856,399.045,150.405,361.594z" fill="currentColor" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+			<path d="M191.996,191.996h64c11.782,0,21.333-9.551,21.333-21.333v-64c0-11.782-9.551-21.333-21.333-21.333     c-11.782,0-21.333,9.551-21.333,21.333v42.667h-42.667c-11.782,0-21.333,9.551-21.333,21.333     C170.663,182.445,180.214,191.996,191.996,191.996z" fill="currentColor" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+			<path d="M405.33,234.663h-64c-11.782,0-21.333,9.551-21.333,21.333v64c0,11.782,9.551,21.333,21.333,21.333     c11.782,0,21.333-9.551,21.333-21.333v-42.667h42.667c11.782,0,21.333-9.551,21.333-21.333     C426.663,244.214,417.112,234.663,405.33,234.663z" fill="currentColor" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+		</g>
+	</g>
+</g>
+</g></svg>

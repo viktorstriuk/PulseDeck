@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="ru" data-theme="dark" data-accent="purple">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http://127.0.0.1:*; media-src 'self' file: blob: https: http://127.0.0.1:*; connect-src 'self' https: http://127.0.0.1:*; object-src 'none'; base-uri 'none'; frame-src 'none';" />
+  <title data-i18n="AppName"></title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="lyrics-view.css" />
+  <link rel="stylesheet" href="surfaces.css" />
+  <link rel="stylesheet" href="release-center.css">
+  <link rel="stylesheet" href="online-search.css">
+  <link rel="stylesheet" href="track-tools.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="titlebar">
+      <div class="brand drag-region">
+        <img class="brand-icon" src="../assets/icon.png" alt="" />
+        <div class="brand-copy"><strong data-i18n="AppName"></strong><span data-i18n="AppTagline"></span></div>
+      </div>
+      <div class="top-search no-drag">
+        <span class="search-icon" data-icon="search"></span>
+        <input id="searchInput" type="search" spellcheck="false" autocomplete="off" placeholder="" data-i18n-placeholder="UIFindATrackOrArtist" aria-label="" data-i18n-aria-label="UISearchLibrary" />
+        <kbd data-i18n="UICtrlK"></kbd>
+      </div>
+      <div class="header-actions no-drag">
+        <button id="onlineBtn" class="button secondary" title="" data-i18n-title="UISearchAndDownloadFromTheInternet"><span data-icon="cloudDownload"></span><span data-i18n="UIOnline"></span></button>
+        <button id="addBtn" class="button primary" title="" data-i18n-title="UIAddFiles"><span data-icon="plus"></span><span data-i18n="UIAdd"></span></button>
+        <button id="settingsBtn" class="icon-button" title="" data-i18n-title="SettingsButton"><span data-icon="settings"></span></button>
+      </div>
+      <div class="window-controls no-drag" aria-label="" data-i18n-aria-label="UIWindowControls">
+        <button id="minBtn" class="window-button" title="" data-i18n-title="UIMinimise"><span data-icon="minus"></span></button>
+        <button id="maxBtn" class="window-button" title="" data-i18n-title="UIMaximise"><span data-icon="maximize"></span></button>
+        <button id="closeBtn" class="window-button close" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="hero-row">
+        <div>
+          <h1 data-i18n="UIMyMusic"></h1>
+          <p id="libraryMeta" data-i18n="UILoadingYourLibrary"></p>
+        </div>
+        <div class="hero-actions">
+          <button id="folderBtn" class="icon-button labeled" title="" data-i18n-title="UIOpenTheMusicFolder"><span data-icon="folder"></span><span data-i18n="UIMusicFolder"></span></button>
+          <button id="refreshBtn" class="icon-button" title="" data-i18n-title="UIRefresh"><span data-icon="refresh"></span></button>
+        </div>
+      </section>
+
+      <section class="toolbar" aria-label="" data-i18n-aria-label="UIFiltersAndView">
+        <div class="category-zone">
+          <div id="hiddenCategories" class="hidden-categories hidden" aria-label="" data-i18n-aria-label="UIHiddenPlaylists"></div>
+          <div id="categoryChips" class="chips category-tabs" role="tablist"></div>
+        </div>
+        <div class="toolbar-right">
+          <div id="sortControl" class="custom-select">
+            <button id="sortTrigger" class="select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span data-icon="sort"></span><span id="sortLabel" data-i18n="UINewestFirst"></span><span data-icon="chevronDown"></span>
+            </button>
+            <div id="sortPopover" class="select-popover sort-popover-wide hidden" role="listbox" aria-label="" data-i18n-aria-label="UISorting">
+              <button type="button" role="option" data-sort="manual"><span data-i18n="UICustomOrder"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="recent"><span data-i18n="UINewestFirst"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="old"><span data-i18n="UIOldestFirst"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="title"><span data-i18n="UITitleAZ"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="titleDesc"><span data-i18n="UITitleZA"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="artist"><span data-i18n="UIByArtist"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="album"><span data-i18n="UIByAlbum"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="durationAsc"><span data-i18n="UIShortestFirst"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="durationDesc"><span data-i18n="UILongestFirst"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="source"><span data-i18n="UIBySource"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="sizeDesc"><span data-i18n="UIByFileSize"></span><span data-icon="check"></span></button>
+            </div>
+          </div>
+          <div class="toolbar-toggle-group" role="group" aria-label="" data-i18n-aria-label="UILibraryView">
+            <div class="segmented compact-segmented">
+              <button id="gridViewBtn" class="segment active" title="" data-i18n-title="UICards" aria-label="" data-i18n-aria-label="UICards"><span data-icon="grid"></span></button>
+              <button id="listViewBtn" class="segment" title="" data-i18n-title="UIList" aria-label="" data-i18n-aria-label="UIList"><span data-icon="list"></span></button>
+            </div>
+            <div id="playlistLayoutControl" class="segmented compact-segmented" role="group" aria-label="" data-i18n-aria-label="UIPlaylistLayout">
+              <button class="segment" data-category-layout="top" title="" data-i18n-title="UIPlaylistsAtTheTop" aria-label="" data-i18n-aria-label="UIPlaylistsAtTheTop"><span data-icon="more"></span></button>
+              <button class="segment" data-category-layout="side" title="" data-i18n-title="UIPlaylistsOnTheSide" aria-label="" data-i18n-aria-label="UIPlaylistsOnTheSide"><span data-icon="list"></span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside id="categorySidebar" class="category-sidebar hidden" aria-label="" data-i18n-aria-label="UIPlaylistsOnTheSide"></aside>
+
+      <section id="dropHint" class="drop-hint hidden"><span data-icon="music"></span><span data-i18n="UIPlaceAudioFilesInThe"></span> <strong data-i18n="UIMusic"></strong> <span data-i18n="UIFolderTheyWillAppearHereAutomatically"></span></section>
+      <section id="library" class="library grid-view" role="listbox" aria-label="" data-i18n-aria-label="UITracksDragFromAnEmptyAreaOrHold" aria-multiselectable="true" aria-live="polite"></section>
+      <section id="emptyState" class="empty-state hidden">
+        <div class="empty-orb"><span data-icon="music"></span></div>
+        <h2 data-i18n="UIItIsQuietHereForNow"></h2>
+        <p><span data-i18n="UIAddFilesUsingTheButtonAbovePutThem"></span> <b data-i18n="UIMusic"></b> <span data-i18n="UIOrFindATrackOnline"></span></p>
+        <div class="empty-actions">
+          <button id="emptyAddBtn" class="button primary"><span data-icon="plus"></span><span data-i18n="UIAddFiles"></span></button>
+          <button id="emptyOnlineBtn" class="button secondary"><span data-icon="search"></span><span data-i18n="UIFindOnline"></span></button>
+        </div>
+      </section>
+    </main>
+
+    <footer id="player" class="player disabled">
+      <div class="now-playing">
+        <div id="playerCover" class="cover tiny placeholder"><span data-icon="music"></span></div>
+        <div class="now-copy"><strong id="playerTitle" data-i18n="UISelectATrack"></strong><span id="playerArtist" data-i18n="AppName"></span></div>
+        <button id="playerFavorite" class="icon-button subtle" title="" data-i18n-title="UIAddToFavourites" disabled><span data-icon="heart"></span></button>
+      </div>
+      <div class="transport">
+        <div class="transport-buttons">
+          <button id="shuffleBtn" class="icon-button subtle" title="" data-i18n-title="UIShuffle"><span data-icon="shuffle"></span></button>
+          <button id="prevBtn" class="icon-button" title="" data-i18n-title="UIPrevious"><span data-icon="skipBack"></span></button>
+          <button id="playBtn" class="play-button" title="" data-i18n-title="UIPlay2"><span data-icon="play"></span></button>
+          <button id="nextBtn" class="icon-button" title="" data-i18n-title="UINext"><span data-icon="skipForward"></span></button>
+          <button id="repeatBtn" class="icon-button subtle" title="" data-i18n-title="UIRepeat"><span data-icon="repeat"></span></button>
+        </div>
+        <div class="timeline">
+          <span id="currentTime">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="" data-i18n-aria-label="UIPosition" />
+          <span id="totalTime">0:00</span>
+        </div>
+      </div>
+      <div class="volume-block">
+        <button id="muteBtn" class="icon-button subtle" title="" data-i18n-title="UISound"><span data-icon="volume"></span></button>
+        <input id="volume" type="range" min="0" max="100" value="82" aria-label="" data-i18n-aria-label="UIVolume" />
+      </div>
+      <audio id="audio" preload="metadata"></audio>
+    </footer>
+  </div>
+
+  <div id="onlineModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal large" role="dialog" aria-modal="true" aria-labelledby="onlineTitle">
+      <div class="modal-header">
+        <div><span class="eyebrow" data-i18n="UIOnlineImport"></span><h2 id="onlineTitle" data-i18n="UIFindAndAddMusic"></h2></div>
+        <button class="icon-button modal-close" data-close="onlineModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button>
+      </div>
+      <div id="searchWorkspace">
+      <div class="source-tabs" role="tablist">
+        <button class="source-tab active" data-provider="youtube"><span data-icon="youtube"></span><span data-i18n="UIYouTube"></span></button>
+        <button class="source-tab" data-provider="soundcloud"><span data-icon="wave"></span><span data-i18n="UISoundCloud"></span></button>
+      </div>
+      <div class="online-search-row">
+        <div class="modal-search"><span data-icon="search"></span><input id="onlineSearchInput" placeholder="" data-i18n-placeholder="SearchNameOrLink" spellcheck="false" /><button id="onlineSearchBtn" class="button primary" data-i18n="UIFind"></button></div>
+      </div>
+      <div id="onlineNotice" class="notice"><span data-icon="info"></span><span data-i18n="UIYouCanPreviewAResultFirstTrimmingBefore"></span></div>
+      <div id="onlinePreviewBar" class="online-preview-bar hidden">
+        <button id="onlinePreviewToggle" class="preview-play" title="" data-i18n-title="UIPausePlay"><span data-icon="pause"></span></button>
+        <div class="online-preview-copy"><strong id="onlinePreviewTitle" data-i18n="UIAudioPreview"></strong><span id="onlinePreviewArtist"></span></div>
+        <div class="online-preview-time"><span id="onlinePreviewCurrent">0:00</span><span>/</span><span id="onlinePreviewDuration">0:00</span></div>
+        <button id="onlinePreviewMute" class="icon-button subtle" type="button" aria-pressed="false" data-i18n-aria-label="SearchMute" data-i18n-title="SearchMute"></button>
+        <button id="onlinePreviewClose" class="icon-button subtle" title="" data-i18n-title="UIStop"><span data-icon="close"></span></button>
+      </div>
+      <div id="onlineResults" class="online-results"></div>
+      <audio id="onlinePreviewAudio" preload="none"></audio>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchPopover" class="search-popover hidden"></div>
+
+  <div id="trimModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal trim-modal" role="dialog" aria-modal="true" aria-labelledby="trimTitle">
+      <div class="modal-header">
+        <div><span class="eyebrow" data-i18n="UIYouTubeBeforeDownloading"></span><h2 id="trimTitle" data-i18n="UITrimTrack"></h2></div>
+        <button class="icon-button modal-close" data-close="trimModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button>
+      </div>
+      <div class="trim-media">
+        <div id="trimCover" class="cover trim-cover placeholder"><span data-icon="music"></span></div>
+        <div class="trim-copy"><strong id="trimTrackTitle" data-i18n="PlaylistIconTrack"></strong><span id="trimTrackArtist" data-i18n="LyricsArtist"></span><small id="trimTrackDuration">0:00</small></div>
+      </div>
+      <div id="autoTrimCard" class="auto-trim-card" tabindex="0" title="" data-i18n-title="UIDoubleClickToApplyTheSuggestion">
+        <div class="auto-trim-icon"><span data-icon="sparkles"></span></div>
+        <div><strong data-i18n="UIAutomaticSuggestion"></strong><span id="autoTrimText" data-i18n="UIAnalysingMusicalActivity"></span><small id="autoTrimMethod" data-i18n="UIDoubleClickToApplyTheSuggestedBoundaries"></small></div>
+        <button id="applyAutoTrim" class="button secondary" disabled data-i18n="UIApply"></button>
+      </div>
+      <div id="trimTimeline" class="trim-timeline" aria-label="" data-i18n-aria-label="UIAudioPreviewPosition">
+        <div id="trimWave" class="trim-wave" aria-hidden="true"></div>
+        <input id="trimSeek" class="trim-seek" type="range" min="0" max="100" step="0.05" value="0" aria-label="" data-i18n-aria-label="UIPlaybackPosition" />
+        <i id="trimPlayhead" class="trim-playhead" aria-hidden="true"></i>
+      </div>
+      <div class="trim-transport" role="group" aria-label="" data-i18n-aria-label="UIAudioPreviewControls">
+        <button id="trimJumpStart" class="trim-transport-button" title="" data-i18n-title="UIGoToTheStartOfTheVideo" aria-label="" data-i18n-aria-label="UIGoToTheStartOfTheVideo"><span data-icon="jumpStart"></span></button>
+        <button id="trimRewind" class="trim-transport-button" title="" data-i18n-title="LyricsBackSeconds" aria-label="" data-i18n-aria-label="LyricsBackSeconds"><span data-icon="rewind"></span></button>
+        <button id="trimPreviewToggle" class="trim-transport-button primary" title="" data-i18n-title="UIPlay2" aria-label="" data-i18n-aria-label="UIPlay2"><span data-icon="play"></span></button>
+        <button id="trimForward" class="trim-transport-button" title="" data-i18n-title="LyricsForwardSeconds" aria-label="" data-i18n-aria-label="LyricsForwardSeconds"><span data-icon="forward"></span></button>
+        <span class="trim-position"><output id="trimPreviewCurrent">0:00</output><span>/</span><output id="trimPreviewTotal">0:00</output></span>
+      </div>
+      <div class="trim-controls">
+        <div class="trim-control-row">
+          <div class="trim-control-head"><label for="trimStart" data-i18n="LyricsStart"></label><output id="trimStartValue">0:00</output></div>
+          <input id="trimStart" type="range" min="0" max="100" value="0" step="0.1" />
+          <div class="trim-nudges"><button data-trim-nudge="start:-5" data-i18n="UIS3"></button><button data-trim-nudge="start:-1" data-i18n="UIS4"></button><button data-trim-nudge="start:1" data-i18n="UIS5"></button><button data-trim-nudge="start:5" data-i18n="UIS6"></button></div>
+        </div>
+        <div class="trim-control-row">
+          <div class="trim-control-head"><label for="trimEnd" data-i18n="LyricsEnd"></label><output id="trimEndValue">0:00</output></div>
+          <input id="trimEnd" type="range" min="0" max="100" value="100" step="0.1" />
+          <div class="trim-nudges"><button data-trim-nudge="end:-5" data-i18n="UIS3"></button><button data-trim-nudge="end:-1" data-i18n="UIS4"></button><button data-trim-nudge="end:1" data-i18n="UIS5"></button><button data-trim-nudge="end:5" data-i18n="UIS6"></button></div>
+        </div>
+      </div>
+      <div class="trim-summary"><span id="trimSummary" data-i18n="UIEntireTrackWillBeDownloaded"></span><button id="resetTrim" class="text-button" data-i18n="UIResetTrimming"></button></div>
+      <div class="trim-actions"><button id="trimCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="trimDownload" class="button primary"><span data-icon="download"></span><span data-i18n="UIDownloadSelectedSegment"></span></button></div>
+      <audio id="trimPreviewAudio" preload="none"></audio>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal settings-modal settings-hub" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header settings-header"><div><span class="eyebrow" data-i18n="SettingsButton"></span><h2 id="settingsTitle" data-i18n="UIMakePulseDeckYours"></h2><p class="settings-subtitle" data-i18n="UIAppearancePlayerShortcutsAndLibrary"></p></div><button class="icon-button modal-close" data-close="settingsModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button></div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="" data-i18n-aria-label="UISettingsSections">
+          <button class="settings-nav-item active" data-settings-page="appearance" data-i18n-title="UIAppearance" data-i18n-aria-label="UIAppearance"><span data-icon="palette"></span><span><b data-i18n="UIAppearance"></b><small data-i18n="UIThemeBackgroundAndIcon"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="player" data-i18n-title="UIPlayer" data-i18n-aria-label="UIPlayer"><span data-icon="music"></span><span><b data-i18n="UIPlayer"></b><small data-i18n="UIPopupAndPersistent"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="games" data-i18n-title="UIGameOverlay" data-i18n-aria-label="UIGameOverlay"><span data-icon="gamepad"></span><span><b data-i18n="UIGameOverlay"></b><small data-i18n="UIOverGamesAndFullScreenApps"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="hotkeys" data-i18n-title="UIKeyboardShortcuts2" data-i18n-aria-label="UIKeyboardShortcuts2"><span data-icon="bars"></span><span><b data-i18n="UIKeyboardShortcuts2"></b><small data-i18n="UIControlsOverGames"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="updates" data-i18n-title="UpdatesTitle" data-i18n-aria-label="UpdatesTitle"><span data-icon="download"></span><span><b data-i18n="UpdatesTitle"></b><small data-i18n="UpdatesNavSubtitle"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="language" data-i18n-title="LanguageSettingsTitle" data-i18n-aria-label="LanguageSettingsTitle"><span data-icon="globe"></span><span><b data-i18n="LanguageSettingsTitle"></b><small data-i18n="LanguageSettingsDescription"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="library" data-i18n-title="UILibrary" data-i18n-aria-label="UILibrary"><span data-icon="folder"></span><span><b data-i18n="UILibrary"></b><small data-i18n="UIFilesAndStorage"></small></span></button>
+          <button id="settingsAbout" class="settings-about" data-settings-page="about" type="button" title="" data-i18n-title="AboutTitle">
+            <img class="settings-about-icon" src="../assets/app-icons/blue-violet-monitor.png" alt="" draggable="false">
+            <span class="settings-about-copy"><strong><span data-i18n="AppName"></span> <span id="appVersion"></span></strong><small data-i18n="AppTagline"></small></span>
+            <span class="settings-about-arrow" aria-hidden="true">›</span>
+          </button>
+        </nav>
+        <div class="settings-pages">
+          <section class="settings-page active" data-settings-panel="appearance">
+            <div class="settings-page-title"><h3 data-i18n="UIAppearance"></h3><p data-i18n="UIMakePulseDeckYourOwnWithoutVisualClutter"></p></div>
+            <div class="setting-block theme-block">
+              <div class="setting-label-row"><label data-i18n="UIColourTheme"></label><small data-i18n="UICompactPalettesHoverForNames"></small></div>
+              <div id="themeRail" class="theme-grid" role="radiogroup" aria-label="" data-i18n-aria-label="UIColourTheme">
+                <button class="theme-option theme-swatch dark" data-theme="dark" title="" data-i18n-title="UINight" aria-label="" data-i18n-aria-label="UINight"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch graphite" data-theme="graphite" title="" data-i18n-title="UIGraphite" aria-label="" data-i18n-aria-label="UIGraphite"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch ocean" data-theme="ocean" title="" data-i18n-title="UIOcean" aria-label="" data-i18n-aria-label="UIOcean"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch forest" data-theme="forest" title="" data-i18n-title="UIForest" aria-label="" data-i18n-aria-label="UIForest"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch midnight" data-theme="midnight" title="" data-i18n-title="UIMidnight" aria-label="" data-i18n-aria-label="UIMidnight"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch plum" data-theme="plum" title="" data-i18n-title="UIPlum" aria-label="" data-i18n-aria-label="UIPlum"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch ember" data-theme="ember" title="" data-i18n-title="UIEmber" aria-label="" data-i18n-aria-label="UIEmber"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch nord" data-theme="nord" title="" data-i18n-title="UINord" aria-label="" data-i18n-aria-label="UINord"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch aurora" data-theme="aurora" title="" data-i18n-title="UIAurora" aria-label="" data-i18n-aria-label="UIAurora"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch dawn" data-theme="dawn" title="" data-i18n-title="UIDawn" aria-label="" data-i18n-aria-label="UIDawn"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch light" data-theme="light" title="" data-i18n-title="UILight" aria-label="" data-i18n-aria-label="UILight"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch paper" data-theme="paper" title="" data-i18n-title="UIPaper" aria-label="" data-i18n-aria-label="UIPaper"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch sand" data-theme="sand" title="" data-i18n-title="UISand" aria-label="" data-i18n-aria-label="UISand"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch linen" data-theme="linen" title="" data-i18n-title="UILinen" aria-label="" data-i18n-aria-label="UILinen"><i></i><b></b><em></em></button>
+                <button class="theme-option theme-swatch system" data-theme="system" title="" data-i18n-title="UISystem" aria-label="" data-i18n-aria-label="UISystem"><i></i><b></b><em></em></button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <div class="setting-label-row"><label data-i18n="UIAccent"></label><small data-i18n="UISameColourPickerThroughoutTheApp"></small></div>
+              <div id="accentOptions" class="category-color-options accent-standard">
+                <button class="category-color-dot" style="--dot:#b038ae" data-accent="purple" data-color="#b038ae" aria-label="" data-i18n-aria-label="UIB038ae" title="" data-i18n-title="UIB038ae"></button>
+                <button class="category-color-dot" style="--dot:#4665c2" data-accent="blue" data-color="#4665c2" aria-label="" data-i18n-aria-label="UIC2" title="" data-i18n-title="UIC2"></button>
+                <button class="category-color-dot" style="--dot:#27ab7b" data-accent="mint" data-color="#27ab7b" aria-label="" data-i18n-aria-label="UIAb7b" title="" data-i18n-title="UIAb7b"></button>
+                <button class="category-color-dot" style="--dot:#5c6929" data-accent="olive" data-color="#5c6929" aria-label="" data-i18n-aria-label="UIC6929" title="" data-i18n-title="UIC6929"></button>
+                <button class="category-color-dot" style="--dot:#bd6e44" data-accent="clay" data-color="#bd6e44" aria-label="" data-i18n-aria-label="UIBd6e44" title="" data-i18n-title="UIBd6e44"></button>
+                <button class="category-color-dot" style="--dot:#2b97a1" data-accent="teal" data-color="#2b97a1" aria-label="" data-i18n-aria-label="UITeal" title="" data-i18n-title="UITeal"></button>
+                <button class="category-color-dot" style="--dot:#d4608a" data-accent="rose" data-color="#d4608a" aria-label="" data-i18n-aria-label="UIRose" title="" data-i18n-title="UIRose"></button>
+                <button class="category-color-dot" style="--dot:#c79a31" data-accent="gold" data-color="#c79a31" aria-label="" data-i18n-aria-label="UIGold" title="" data-i18n-title="UIGold"></button>
+                <button class="category-color-dot" style="--dot:#b93e56" data-accent="crimson" data-color="#b93e56" aria-label="" data-i18n-aria-label="UICrimson" title="" data-i18n-title="UICrimson"></button>
+                <button id="customAccentBtn" class="category-color-custom" data-accent="custom" aria-label="" data-i18n-aria-label="UICustomColour" title="" data-i18n-title="UICustomColour"><span data-icon="palette"></span></button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <label data-i18n="UIApplicationIcon"></label>
+              <div id="appIconOptions" class="app-icon-grid">
+                <button data-app-icon="builtin:mint-violet"><img src="../assets/app-icons/mint-violet-monitor.png" alt=""><span data-i18n="UIMint"></span></button>
+                <button data-app-icon="builtin:blue-violet"><img src="../assets/app-icons/blue-violet-monitor.png" alt=""><span data-i18n="UIBlue"></span></button>
+                <button data-app-icon="builtin:magenta-orange"><img src="../assets/app-icons/magenta-orange-monitor.png" alt=""><span data-i18n="LyricsSunset"></span></button>
+                <button data-app-icon="builtin:ocean"><img src="../assets/app-icons/ocean-monitor.png" alt=""><span data-i18n="UIOcean"></span></button>
+                <button data-app-icon="builtin:forest"><img src="../assets/app-icons/forest-monitor.png" alt=""><span data-i18n="UIForest"></span></button>
+                <button data-app-icon="builtin:sunset"><img src="../assets/app-icons/sunset-monitor.png" alt=""><span data-i18n="UIWarmth"></span></button>
+                <button data-app-icon="builtin:indigo"><img src="../assets/app-icons/indigo-monitor.png" alt=""><span data-i18n="UIIndigo"></span></button>
+                <button data-app-icon="builtin:mono"><img src="../assets/app-icons/mono-monitor.png" alt=""><span data-i18n="UIMono"></span></button>
+                <button data-app-icon="builtin:sky"><img src="../assets/app-icons/sky-monitor.png" alt=""><span data-i18n="UIRosePearl"></span></button>
+                <button data-app-icon="builtin:coral"><img src="../assets/app-icons/coral-monitor.png" alt=""><span data-i18n="UISoftPorcelain"></span></button>
+                <button data-app-icon="builtin:lime"><img src="../assets/app-icons/lime-monitor.png" alt=""><span data-i18n="UIChampagne"></span></button>
+                <button data-app-icon="builtin:noir"><img src="../assets/app-icons/noir-monitor.png" alt=""><span data-i18n="UINoir"></span></button>
+                <button id="customIconBtn" class="custom-app-icon-option" data-app-icon="custom-gradient"><div class="custom-icon-placeholder"><span class="original-monitor-mark" aria-hidden="true"></span></div><span data-i18n="UICustomApplicationIconLabel"></span></button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <div class="setting-label-row"><label data-i18n="UIBackground"></label><small data-i18n="UIBehindYourMusicList"></small></div>
+              <div class="background-controls">
+                <div id="backgroundMode" class="segmented wide" role="group" aria-label="" data-i18n-aria-label="UIBackgroundMode"><button class="segment" data-background-mode="off" data-i18n="UIOff"></button><button class="segment" data-background-mode="track" data-i18n="UISongBackground"></button><button class="segment" data-background-mode="custom" data-i18n="UICustom"></button></div>
+                <button id="uploadBackgroundBtn" class="button secondary"><span data-icon="upload"></span><span data-i18n="UIUploadABackground"></span></button>
+              </div>
+              <div id="backgroundHistory" class="background-history" aria-label="" data-i18n-aria-label="UIRecentBackgrounds"></div>
+              <div class="background-opacity-row"><div class="background-opacity-head"><label for="backgroundOpacity" data-i18n="UIOpacity"></label><output id="backgroundOpacityValue">34%</output></div><input id="backgroundOpacity" type="range" min="1" max="100" value="34" step="1" aria-label="" data-i18n-aria-label="UIBackgroundVisibility" /><small data-i18n="UIBarelyVisibleFullyVisibleBackground"></small></div>
+            </div>
+            <section id="surfaceSettings" class="player-config-card surface-style-card" data-i18n-aria-label="UIPanelStyle">
+              <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIAppearance"></span><h4 data-i18n="UIPanelStyle"></h4></div><p data-i18n="SurfaceScopeHelp"></p></div>
+              <label class="switch-row surface-all-row"><input id="surfaceApplyAll" type="checkbox" aria-describedby="surfaceScopeNote"><span></span><strong data-i18n="SurfaceApplyAll"></strong></label>
+              <p id="surfaceScopeNote" class="surface-control-help" data-i18n="SurfaceIndividualHelp"></p>
+              <div id="surfaceTargetOptions" class="surface-target-options" role="group" data-i18n-aria-label="SurfaceChooseTarget">
+                <button type="button" data-surface-target="windows" aria-pressed="false" data-i18n="SurfaceWindows"></button>
+                <button type="button" data-surface-target="menus" aria-pressed="false" data-i18n="SurfaceMenus"></button>
+                <button type="button" data-surface-target="contextMenus" aria-pressed="false" data-i18n="SurfaceContextMenus"></button>
+                <button type="button" data-surface-target="blocks" aria-pressed="false" data-i18n="SurfaceBlocks"></button>
+                <button type="button" data-surface-target="controls" aria-pressed="false" data-i18n="SurfaceControls"></button>
+                <button type="button" data-surface-target="bars" aria-pressed="false" data-i18n="SurfaceBars"></button>
+                <button type="button" data-surface-target="notifications" aria-pressed="false" data-i18n="SurfaceNotifications"></button>
+              </div>
+              <div id="surfaceStyleOptions" class="surface-style-options" role="group" data-i18n-aria-label="UIPanelStyle">
+                <button type="button" data-surface-style="glass" aria-pressed="false"><span class="surface-mode-demo glass" aria-hidden="true"><i></i><b></b><em></em></span><span data-i18n="UIGlass"></span><span class="surface-choice-check" data-icon="check" data-size="12"></span></button>
+                <button type="button" data-surface-style="gradient" aria-pressed="false"><span class="surface-mode-demo gradient" aria-hidden="true"><i></i><b></b><em></em></span><span data-i18n="UIGradient"></span><span class="surface-choice-check" data-icon="check" data-size="12"></span></button>
+                <button type="button" data-surface-style="translucent" aria-pressed="false"><span class="surface-mode-demo translucent" aria-hidden="true"><i></i><b></b><em></em></span><span data-i18n="UITranslucent"></span><span class="surface-choice-check" data-icon="check" data-size="12"></span></button>
+                <button type="button" data-surface-style="outline" aria-pressed="false"><span class="surface-mode-demo outline" aria-hidden="true"><i></i><b></b><em></em></span><span data-i18n="UIOutlineOnly"></span><span class="surface-choice-check" data-icon="check" data-size="12"></span></button>
+                <button type="button" data-surface-style="invisible" aria-pressed="false"><span class="surface-mode-demo invisible" aria-hidden="true"><i></i><b></b><em></em></span><span data-i18n="UIInvisible"></span><span class="surface-choice-check" data-icon="check" data-size="12"></span></button>
+              </div>
+              <div class="player-control-grid two surface-tuning">
+                <div class="player-control-field"><div class="setting-label-row"><label for="surfaceOpacity" data-i18n="SurfaceFillOpacity"></label><output id="surfaceOpacityValue">94%</output></div><input id="surfaceOpacity" type="range" min="0" max="100" step="1" value="94" aria-describedby="surfaceOpacityHelp"><small id="surfaceOpacityHelp" class="surface-control-help" data-i18n="SurfaceOpacityHelp"></small></div>
+                <div class="player-control-field"><div class="setting-label-row"><label for="surfaceBorderThickness" data-i18n="UIBorderThickness"></label><output id="surfaceBorderThicknessValue" data-i18n="SurfaceBorderPx" data-i18n-args='{"value1":1}'></output></div><input id="surfaceBorderThickness" type="range" min="0" max="6" step="0.5" value="1" aria-describedby="surfaceBorderHelp"><small id="surfaceBorderHelp" class="surface-control-help" data-i18n="SurfaceAdaptiveBorderHelp"></small></div>
+                <div class="player-control-field"><div class="setting-label-row"><label for="surfaceBorderOpacity" data-i18n="SurfaceBorderOpacity"></label><output id="surfaceBorderOpacityValue">18%</output></div><input id="surfaceBorderOpacity" type="range" min="0" max="100" step="1" value="18"><small class="surface-control-help" data-i18n="SurfaceBorderOpacityHelp"></small></div>
+                <div class="player-control-field surface-colour-field"><span class="control-caption" data-i18n="UIBorderColour"></span><button id="surfaceBorderColorBtn" class="overlay-color-button" type="button" data-i18n-aria-label="UIBorderColour"><i aria-hidden="true"></i><span data-i18n="UICustomColour"></span><output id="surfaceBorderHex"></output></button><small class="surface-control-help" data-i18n="UISameColourPickerThroughoutTheApp"></small></div>
+              </div>
+              <div class="surface-settings-footer"><p id="surfaceModeNote" class="setting-help" role="status" data-i18n="SurfaceLiveHelp"></p><div class="surface-reset-actions"><button id="surfaceCommonResetBtn" class="button secondary small" type="button"><span data-icon="undo" data-size="14"></span><span data-i18n="SurfaceResetCommon"></span></button><button id="surfaceResetBtn" class="button secondary small" type="button"><span data-icon="undo" data-size="14"></span><span data-i18n="SurfaceResetSelected"></span></button></div></div>
+            </section>
+            <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultAppearance"></strong><span data-i18n="UIRestoreTheOriginalThemeAccentBackgroundAndIcon"></span></div><button class="button secondary settings-reset-button" data-reset-settings="appearance"><span data-icon="undo"></span><span data-i18n="UIResetAppearance2"></span></button></div>
+          </section>
+
+          <section class="settings-page player-settings-page" data-settings-panel="player">
+            <div class="settings-page-title player-page-title">
+              <div><h3 data-i18n="UIPlayer"></h3><p data-i18n="UISeparateWindowOverGamesAndTheDesktopSettings"></p></div>
+              <button id="overlayDemoBtn" class="button secondary small"><span data-icon="eye"></span><span data-i18n="UIShowPreview"></span></button>
+            </div>
+            <div class="player-settings-stack">
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIMode"></span><h4 data-i18n="UIWhenToShowTheWindow"></h4></div><p data-i18n="UIPopupAppearsAfterChangingTracksPersistentStaysOn"></p></div>
+                <div id="overlayMode" class="segmented overlay-mode-segmented"><button class="segment" data-overlay-mode="off" data-i18n="UIOff"></button><button class="segment" data-overlay-mode="popup" data-i18n="UIPopup"></button><button class="segment" data-overlay-mode="persistent" data-i18n="UIPersistent"></button></div>
+              </section>
+
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIBehaviour"></span><h4 data-i18n="UIAppearanceAndInteraction"></h4></div></div>
+                <div class="player-control-grid two">
+                  <div class="player-control-field"><div class="setting-label-row"><label for="overlayDuration" data-i18n="UIDisplayDuration"></label><output id="overlayDurationValue" data-i18n="UIS7"></output></div><input id="overlayDuration" type="range" min="1" max="12" value="3.2" step="0.1"></div>
+                  <label class="player-switch-card"><input id="overlayNotifyAutoNext" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIAutomaticAdvance"></b><small data-i18n="UIShowTheWindowWhenTheNextTrackStarts"></small></span></label>
+                  <label class="player-switch-card wide-switch-card"><input id="overlayClickThroughMinimized" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIClickThrough"></b><small data-i18n="UIBackgroundClicksPassThroughWhileButtonsSeekingAnd"></small></span></label>
+                  <label class="player-switch-card wide-switch-card"><input id="overlayFullscreenTopmost" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIAboveFullScreenWindows"></b><small data-i18n="UIUseTheHighestSafeWindowLevelForGames"></small></span></label>
+                </div>
+              </section>
+
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIWindow"></span><h4 data-i18n="UIBackgroundAndShape"></h4></div><p data-i18n="UITurnTheBackgroundOffCompletelyToKeepOnly"></p></div>
+                <div class="player-surface-toggles">
+                  <label class="player-switch-card"><input id="overlayBackgroundVisible" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIWindowBackground"></b><small data-i18n="UIBackdropAndBlur"></small></span></label>
+                  <label class="player-switch-card"><input id="overlayBorderVisible" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIBorder"></b><small data-i18n="UIThinOutlineAroundTheEdge"></small></span></label>
+                </div>
+                <div class="player-control-grid three">
+                  <div class="player-control-field"><div class="setting-label-row"><label for="overlayOpacity" data-i18n="UIBackgroundOpacity"></label><output id="overlayOpacityValue">94%</output></div><input id="overlayOpacity" type="range" min="0" max="100" value="94"></div>
+                  <div class="player-control-field"><div class="setting-label-row"><label for="overlayCornerRadius" data-i18n="UICornerRadius"></label><output id="overlayCornerRadiusValue" data-i18n="UIPx"></output></div><input id="overlayCornerRadius" type="range" min="0" max="38" value="18"></div>
+                  <div class="player-control-field"><div class="setting-label-row"><label for="overlayBackgroundBlur" data-i18n="UIBlur"></label><output id="overlayBackgroundBlurValue" data-i18n="UIPx"></output></div><input id="overlayBackgroundBlur" type="range" min="0" max="32" value="18"></div>
+                </div>
+                <div class="overlay-color-row single-background-color"><button class="overlay-color-button" data-overlay-color-key="background"><i></i><span data-i18n="UIBackgroundColour"></span></button></div>
+              </section>
+
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIContent"></span><h4 data-i18n="UIWhatToShow"></h4></div><p data-i18n="UIAnyElementCanBeHiddenWhenClickThrough"></p></div>
+                <div id="overlayElementToggles" class="element-toggle-grid player-elements-grid">
+                  <button data-overlay-element="showCover"><span data-icon="image"></span><span data-i18n="LyricsCover"></span></button>
+                  <button data-overlay-element="showTitle"><span data-icon="music"></span><span data-i18n="UITitle"></span></button>
+                  <button data-overlay-element="showArtist"><span data-icon="user"></span><span data-i18n="LyricsArtist"></span></button>
+                  <button data-overlay-element="showProgress"><span data-icon="clock"></span><span data-i18n="UIProgress"></span></button>
+                  <button data-overlay-element="showElapsed"><span data-icon="clock"></span><span data-i18n="UIElapsed"></span></button>
+                  <button data-overlay-element="showRemaining"><span data-icon="clock"></span><span data-i18n="UIRemaining3"></span></button>
+                  <button data-overlay-element="showLabel"><span data-icon="tag"></span><span data-i18n="UINowPlaying"></span></button>
+                  <button data-overlay-element="showControls"><span data-icon="play"></span><span data-i18n="UIButtons"></span></button>
+                  <button data-overlay-element="showPlaylist"><span data-icon="list"></span><span data-i18n="UIPlaylist"></span></button>
+                      <button class="element-toggle active" data-overlay-element="showClickThroughToggle"><span data-icon="mousePointer"></span><span data-i18n="UIClickThroughToggle"></span></button>
+                </div>
+                <label id="overlayLabelField" class="field-label player-label-field"><span data-i18n="UITextAboveTheTrack"></span><input id="overlayLabelInput" maxlength="48" value="Сейчас играет:"></label>
+              </section>
+
+              <section class="player-config-card visualizer-settings">
+                <div class="player-config-head player-config-head-toggle"><div><span class="player-config-kicker" data-i18n="UIAudio"></span><h4 data-i18n="UIMusicVisualiser"></h4><p data-i18n="UIWebAudioAnalysesTheTrackAlreadyPlayingNo"></p></div><label class="mini-toggle"><input id="overlayVisualizerToggle" type="checkbox"><span></span></label></div>
+                <div id="overlayVisualizerBody" class="visualizer-body">
+                  <div class="visualizer-section">
+                    <span class="control-caption" data-i18n="UIStyle"></span>
+                    <div id="overlayVisualizerStyle" class="visualizer-style-grid">
+                      <button data-viz-style="bars"><span data-icon="bars"></span><span><b data-i18n="UISpectrum"></b><small data-i18n="UIFrequencyBars"></small></span></button>
+                      <button data-viz-style="led"><span data-icon="bars"></span><span><b data-i18n="UILED"></b><small data-i18n="UISegmentedIndicators"></small></span></button>
+                      <button data-viz-style="wave"><span data-icon="wave"></span><span><b data-i18n="UIOscilloscope"></b><small data-i18n="UIWaveform"></small></span></button>
+                      <button data-viz-style="area"><span data-icon="wave"></span><span><b data-i18n="UIFlow"></b><small data-i18n="UISoftArea"></small></span></button>
+                      <button data-viz-style="mirror"><span data-icon="repeat"></span><span><b data-i18n="UIMirror"></b><small data-i18n="UIOutwardFromTheCentre"></small></span></button>
+                      <button data-viz-style="radial"><span data-icon="disc"></span><span><b data-i18n="UIRing"></b><small data-i18n="UIRadialSpectrum"></small></span></button>
+                      <button data-viz-style="orb"><span data-icon="radio"></span><span><b data-i18n="UIOrb"></b><small data-i18n="UIReactiveSphere"></small></span></button>
+                    </div>
+                  </div>
+
+                  <div class="visualizer-choice-grid stacked">
+                    <div class="visualizer-choice-block"><span class="control-caption" data-i18n="UIPosition2"></span><div id="overlayVisualizerPosition" class="choice-button-row four position-choice-row"><button data-viz-position="bottom"><span data-icon="arrowDown"></span><span data-i18n="UIBottom"></span></button><button data-viz-position="top"><span data-icon="arrowUp"></span><span data-i18n="UITop"></span></button><button data-viz-position="center"><span data-icon="disc"></span><span data-i18n="UICentre"></span></button><button data-viz-position="background"><span data-icon="layers"></span><span data-i18n="UIBehindContent"></span></button></div><small id="overlayPositionHint" class="choice-help hidden" data-i18n="UICircularVisualisersAreAlwaysPlacedBehindTheContent"></small></div>
+                    <div class="visualizer-choice-block"><span class="control-caption" data-i18n="UIColour"></span><div id="overlayVisualizerColorMode" class="choice-button-row four color-choice-row"><button data-viz-color-mode="gradient"><span data-icon="palette"></span><span data-i18n="LyricsGradient"></span></button><button data-viz-color-mode="solid"><span data-icon="droplet"></span><span data-i18n="UISingle"></span></button><button data-viz-color-mode="rainbow"><span data-icon="sparkles"></span><span data-i18n="UIRainbow"></span></button><button data-viz-color-mode="cover"><span data-icon="image"></span><span data-i18n="LyricsCover"></span></button></div><small class="choice-help" data-i18n="UICoverAutomaticallyPicksTwoMainColoursFromThe"></small></div>
+                  </div>
+
+                  <div class="player-control-grid three visualizer-sliders">
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizHeight" data-i18n="UISize"></label><output id="overlayVizHeightValue" data-i18n="UIPx2"></output></div><input id="overlayVizHeight" type="range" min="4" max="120" value="120"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlaySensitivity" data-i18n="UISensitivity"></label><output id="overlaySensitivityValue">1.0×</output></div><input id="overlaySensitivity" type="range" min="25" max="300" value="100"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlaySmoothing" data-i18n="UISmoothing"></label><output id="overlaySmoothingValue">35%</output></div><input id="overlaySmoothing" type="range" min="0" max="95" value="35"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizOpacity" data-i18n="UIOpacity"></label><output id="overlayVizOpacityValue">100%</output></div><input id="overlayVizOpacity" type="range" min="5" max="100" value="100"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizDetail" data-i18n="UIDetail"></label><output id="overlayVizDetailValue">96</output></div><input id="overlayVizDetail" type="range" min="24" max="96" value="96" step="4"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizGap" data-i18n="UISpaceBetweenBars"></label><output id="overlayVizGapValue">20%</output></div><input id="overlayVizGap" type="range" min="0" max="78" value="20"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizLineWidth" data-i18n="UILineWidth"></label><output id="overlayVizLineWidthValue" data-i18n="UIPx3"></output></div><input id="overlayVizLineWidth" type="range" min="10" max="70" value="70" step="1"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizRoundness" data-i18n="UIBarRoundness"></label><output id="overlayVizRoundnessValue">100%</output></div><input id="overlayVizRoundness" type="range" min="0" max="100" value="100"></div>
+                    <div class="player-control-field"><div class="setting-label-row"><label for="overlayVizRotation" data-i18n="UIRingRotation"></label><output id="overlayVizRotationValue" data-i18n="UIS8"></output></div><input id="overlayVizRotation" type="range" min="-90" max="90" value="10"></div>
+                  </div>
+
+                  <div class="player-surface-toggles visualizer-toggles">
+                    <label class="player-switch-card"><input id="overlayVizMirror" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIMirroring"></b><small data-i18n="UISymmetryForLinearModes"></small></span></label>
+                    <label class="player-switch-card"><input id="overlayVizFill" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIFill"></b><small data-i18n="UISoftFillForWaveAndFlow"></small></span></label>
+                  </div>
+
+                  <div class="overlay-color-row visualizer-colors" data-i18n-data-tooltip="OverlayCoverFallbackColorsNote" data-tooltip="">
+                    <button class="overlay-color-button" data-overlay-color-key="visualizerColor"><i></i><span data-i18n="UIFirstColour"></span></button>
+                    <button class="overlay-color-button" data-overlay-color-key="visualizerColor2"><i></i><span data-i18n="UISecondColour"></span></button>
+                  </div>
+                  <p class="visualizer-note" data-i18n="UIRingAndOrbAlwaysRenderBehindTheContent"></p>
+                </div>
+              </section>
+            </div>
+            <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultPlayer"></strong><span data-i18n="UIResetWindowContentAndVisualiserSettingsMusicPlayback"></span></div><button class="button secondary settings-reset-button" data-reset-settings="player"><span data-icon="undo"></span><span data-i18n="UIResetPlayer2"></span></button></div>
+          </section>
+
+          <section class="settings-page game-overlay-settings-page" data-settings-panel="games">
+            <div class="settings-page-title game-page-title">
+              <div><h3 data-i18n="UIGameOverlay"></h3><p data-i18n="UIRTSSRendersACompactPulseDeckOSDDirectlyInside"></p></div>
+              <span id="gameOverlayHeaderStatus" class="game-overlay-status-pill"><i></i><span data-i18n="UIChecking"></span></span>
+            </div>
+
+            <div class="game-overlay-stack">
+              <section class="player-config-card game-overlay-mode-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIMode"></span><h4 data-i18n="UIHowToShowPulseDeckInGames"></h4></div><p data-i18n="UIAutoFirstChecksForRTSSInsideTheCurrent"></p></div>
+                <div id="gameOverlayMode" class="game-overlay-mode-grid" role="radiogroup" aria-label="" data-i18n-aria-label="UIGameOverlayMode">
+                  <button data-game-overlay-mode="auto"><span data-icon="sparkles"></span><span><b data-i18n="UIAuto"></b><small data-i18n="UIRTSSWindowFallback"></small></span></button>
+                  <button data-game-overlay-mode="rtss"><span data-icon="bolt"></span><span><b data-i18n="UIRTSS"></b><small data-i18n="UIInGameOSDOnly"></small></span></button>
+                  <button data-game-overlay-mode="window"><span data-icon="monitor"></span><span><b data-i18n="UIWindowsWindow"></b><small data-i18n="UIStandardPlayer"></small></span></button>
+                  <button data-game-overlay-mode="off"><span data-icon="close"></span><span><b data-i18n="UIOff"></b><small data-i18n="UINoGameLayer"></small></span></button>
+                </div>
+              </section>
+
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIConnection"></span><h4 data-i18n="UIWhenToActivateTheGameLayer"></h4></div><p data-i18n="UIPulseDeckDoesNotInjectDLLsIntoGamesIt"></p></div>
+                <div class="player-surface-toggles game-overlay-toggle-grid">
+                  <label class="player-switch-card"><input id="gameOverlayOnlyFullscreen" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIFullScreenOnly"></b><small data-i18n="UIDoNotShowTheLayerOverRegularWindows"></small></span></label>
+                  <label class="player-switch-card"><input id="gameOverlayAllowlistOnly" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIAllowedGamesOnly"></b><small data-i18n="UIUseOnlySelectedExeFiles"></small></span></label>
+                </div>
+                <div class="game-overlay-explainer"><span data-icon="lock"></span><p><b data-i18n="UINoAntiCheatBypasses"></b> <span data-i18n="UIWhenAGameBlocksThirdPartyOSDPulseDeck"></span></p></div>
+              </section>
+
+              <section class="player-config-card game-overlay-rtss-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIRTSS"></span><h4 data-i18n="UINativeInGameRenderer"></h4></div><div class="game-overlay-actions"><button id="gameOverlayLaunchRtssBtn" class="button secondary small"><span data-icon="play"></span><span data-i18n="UILaunchRTSS"></span></button><button id="gameOverlayRtssDownloadBtn" class="button secondary small"><span data-icon="externalSquare"></span><span data-i18n="UIDownloadRTSS"></span></button></div></div>
+                <div class="game-overlay-rtss-metrics">
+                  <span><small data-i18n="UIRTSS"></small><b id="gameOverlayRtssStatus" data-i18n="UINotFound"></b></span>
+                  <span><small data-i18n="UIRenderer"></small><b id="gameOverlayRenderer">-</b></span>
+                  <span><small data-i18n="UIAPI"></small><b id="gameOverlayRtssApi">-</b></span>
+                  <span><small data-i18n="UIResolution"></small><b id="gameOverlayRtssResolution">-</b></span>
+                </div>
+                <div id="gameOverlayStretchState" class="game-overlay-stretch-state hidden"></div>
+                <div class="game-overlay-rtss-controls">
+                  <label class="player-switch-card"><input id="gameOverlayRtssVisualizer" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UIMiniVisualiser"></b><small data-i18n="UIFrequencyRowInTheGameOSD"></small></span></label>
+                  <div class="game-overlay-anchor-field">
+                    <span class="setting-label" data-i18n="UIPosition2"></span>
+                    <div id="gameOverlayRtssAnchor" class="game-overlay-anchor-grid">
+                      <button data-rtss-anchor="top-left" title="" data-i18n-title="UITopLeft"><span data-icon="arrowUp"></span><small data-i18n="UILeft"></small></button>
+                      <button data-rtss-anchor="top-right" title="" data-i18n-title="UITopRight"><span data-icon="arrowUp"></span><small data-i18n="UIRight"></small></button>
+                      <button data-rtss-anchor="bottom-left" title="" data-i18n-title="UIBottomLeft"><span data-icon="arrowDown"></span><small data-i18n="UILeft"></small></button>
+                      <button data-rtss-anchor="bottom-right" title="" data-i18n-title="UIBottomRight"><span data-icon="arrowDown"></span><small data-i18n="UIRight"></small></button>
+                    </div>
+                  </div>
+                  <div class="game-overlay-offset-grid">
+                    <label><span data-i18n="UIXOffset"></span><input id="gameOverlayRtssOffsetX" type="number" min="0" max="500" step="1" value="24"><small data-i18n="UIPx4"></small></label>
+                    <label><span data-i18n="UIYOffset"></span><input id="gameOverlayRtssOffsetY" type="number" min="0" max="500" step="1" value="24"><small data-i18n="UIPx4"></small></label>
+                  </div>
+                </div>
+                <p class="game-overlay-rtss-note" data-i18n="UIRTSSIsInstalledSeparatelyAndMustBeRunning"></p>
+              </section>
+
+              <section class="player-config-card game-overlay-live-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UILive"></span><h4 data-i18n="UIWhatIsHappeningRightNow"></h4></div><div class="game-overlay-actions"><button id="gameOverlayRestartBtn" class="button secondary small"><span data-icon="refresh"></span><span data-i18n="UIRestartModule"></span></button><button id="gameOverlayGameBarBtn" class="button secondary small"><span data-icon="gamepad"></span><span data-i18n="UIXboxGameBar"></span></button></div></div>
+                <div class="game-overlay-live-grid">
+                  <div class="game-overlay-live-main"><span id="gameOverlayLiveDot" class="game-overlay-live-dot"></span><div><strong id="gameOverlayLiveTitle" data-i18n="UIWaiting"></strong><p id="gameOverlayLiveReason" data-i18n="UICheckingRTSSAndTheGame"></p></div></div>
+                  <div class="game-overlay-meta"><span><span data-i18n="UIProcess"></span><b id="gameOverlayProcess">-</b></span><span><span data-i18n="UIWindow"></span><b id="gameOverlayWindowTitle">-</b></span><span><span data-i18n="UIMode"></span><b id="gameOverlayFullscreenState">-</b></span></div>
+                </div>
+              </section>
+
+              <section class="player-config-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIGames"></span><h4 data-i18n="UIDetectedAndAllowedApplications"></h4></div><p data-i18n="UIInAllowlistModeRTSSPlayerActivateOnlyFor"></p></div>
+                <div id="gameOverlayDetectedList" class="game-overlay-detected-list"><div class="game-overlay-empty" data-i18n="UINothingDetectedYetOpenAGameOrFull"></div></div>
+                <div class="game-overlay-allowlist-head"><span data-i18n="UIAllowedExeFiles"></span><small data-i18n="UIKeptBetweenRestarts"></small></div>
+                <div id="gameOverlayAllowlist" class="game-overlay-allowlist"><span class="game-overlay-empty-inline" data-i18n="UIListIsEmpty"></span></div>
+              </section>
+
+              <section class="player-config-card game-overlay-architecture-card">
+                <div class="player-config-head"><div><span class="player-config-kicker" data-i18n="UIArchitecture"></span><h4 data-i18n="UIPulseDeckRTSS"></h4></div><p data-i18n="UIPulseDeckSendsTheTitleArtistProgressAndSpectrum"></p></div>
+                <div class="game-overlay-flow"><span data-i18n="AppName"></span><i>→</i><span data-i18n="UIRTSSSharedMemory"></span><i>→</i><span data-i18n="UIRTSSRenderer"></span><i>→</i><span data-i18n="UIGameFrame"></span></div>
+                <div class="game-overlay-compat"><span class="good"><b data-i18n="UID3D11D3D12"></b><small data-i18n="UIWhenRTSSIsConnected"></small></span><span class="good"><b data-i18n="UIVulkanOpenGL"></b><small data-i18n="UIWhenRTSSIsConnected"></small></span><span class="warn"><b data-i18n="UIStretched"></b><small data-i18n="UIDetectedSeparately"></small></span><span class="warn"><b data-i18n="UIAntiCheat"></b><small data-i18n="UIMayBlockTheOSD"></small></span></div>
+                <div class="game-overlay-explainer compact"><span data-icon="info"></span><p><b data-i18n="UIAboutStretched"></b> <span data-i18n="UIPulseDeckShowsRenderMonitorResolutionsAndTheStretch"></span></p></div>
+              </section>
+            </div>
+            <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultGameOverlay"></strong><span data-i18n="UIRestoreAutoTheRTSSVisualiserTopLeftPlacement"></span></div><button class="button secondary settings-reset-button" data-reset-settings="games"><span data-icon="undo"></span><span data-i18n="UIResetGameOverlay2"></span></button></div>
+          </section>
+
+          <section class="settings-page" data-settings-panel="hotkeys">
+            <div class="settings-page-title"><h3 data-i18n="UIKeyboardShortcuts2"></h3><p data-i18n="UIGlobalShortcutsWorkEvenWhenPulseDeckIsMinimised"></p></div>
+            <div class="setting-block"><label class="switch-row"><input id="hotkeysEnabled" type="checkbox"><span></span><b data-i18n="UIGlobalKeyboardShortcuts"></b><small data-i18n="UIRegisteredWithWindowsShortcutsAlreadyUsedByThe"></small></label></div>
+            <div id="hotkeyList" class="hotkey-list"></div>
+            <div class="setting-card"><div><strong data-i18n="UIHowToAssign"></strong><span data-i18n="UIClickAShortcutThenHoldToKeysEsc"></span></div></div>
+            <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultShortcuts"></strong><span data-i18n="UIRestoreTheOriginalGlobalShortcutsAndEnableTheir"></span></div><button class="button secondary settings-reset-button" data-reset-settings="hotkeys"><span data-icon="undo"></span><span data-i18n="UIResetKeyboardShortcuts2"></span></button></div>
+          </section>
+
+          <section id="aboutPanel" class="settings-page about-settings-page" data-settings-panel="about">
+            <div class="about-hero">
+              <div class="about-brand"><img class="about-app-icon" src="../assets/app-icons/blue-violet-monitor.png" alt=""><div><span class="section-kicker" data-i18n="AboutKicker"></span><h3 data-i18n="AppName"></h3><p data-i18n="AppTagline"></p></div></div>
+              <div class="about-badges"><span class="about-version" id="aboutVersion">-</span><span class="about-license" data-i18n="CreditsMIT"></span></div>
+              <p class="about-intro" data-i18n="AboutIntro"></p>
+            </div>
+            <section class="about-author" aria-labelledby="authorName">
+              <div class="author-art"><img src="../assets/author/mushep.png" alt="" draggable="false"></div>
+              <div class="author-info"><span class="section-kicker" data-i18n="AboutCreatedBy"></span><h4 id="authorName" data-i18n="AuthorMusheP"></h4><p data-i18n="AboutAuthorDescription"></p><p id="authorExecution" class="author-execution"></p><div id="authorSocials" class="author-socials"></div></div>
+            </section>
+            <div class="about-section-heading"><div><h4 data-i18n="CreditsTitle"></h4><p data-i18n="CreditsSubtitle"></p></div><span class="section-number" aria-hidden="true">04</span></div>
+            <div id="creditsGroups" class="credits-groups"></div>
+            <div class="about-license-note"><span data-icon="info"></span><p><b data-i18n="AboutMITNotice"></b> <span data-i18n="AboutLicenseDetail"></span></p></div>
+            <div id="creditsLinkStatus" class="release-error" role="status"></div>
+          </section>
+          <section class="settings-page updates-settings-page" data-settings-panel="updates">
+            <div class="settings-page-title release-page-heading"><div><h3 data-i18n="UpdatesTitle"></h3><p data-i18n="UpdatesSubtitle"></p></div><button id="updatesCheck" class="button secondary small"><span data-icon="refresh"></span><span data-i18n="UpdatesCheck"></span></button></div>
+            <section id="updatesStatusCard" class="update-status-card" data-phase="unconfigured" aria-labelledby="updatesStatus">
+              <div class="update-orb"><span data-icon="download" data-size="25"></span><i></i></div><div class="update-status-copy"><span class="section-kicker" id="updatesCurrentVersion"></span><h4 id="updatesStatus" data-i18n="UpdatesNotConfigured"></h4><p id="updatesExplanation" data-i18n="UpdatesConfigureHint"></p><small id="updatesLastChecked" data-i18n="UpdatesNeverChecked"></small></div>
+              <div id="updatesProgressWrap" class="update-download-progress hidden"><div class="update-progress-heading"><span data-i18n="UpdatesVerifiedDownload"></span><output id="updatesProgressValue">0%</output></div><div id="updatesProgress" class="release-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-i18n-aria-label="UpdatesDownloading"><i></i></div><button id="updatesCancel" class="text-button" data-i18n="LyricsCancel"></button></div>
+              <div id="updatesAvailableActions" class="update-actions hidden"><button id="updatesDownloadNow" class="button primary"><span data-icon="download"></span><span data-i18n="UpdatesDownloadRestart"></span></button><button id="updatesDownloadLater" class="button secondary" data-i18n="UpdatesDownloadLater"></button></div>
+              <div id="updatesReadyActions" class="update-actions hidden"><button id="updatesInstall" class="button primary"><span data-icon="refresh"></span><span data-i18n="UpdatesInstallNow"></span></button><button id="updatesDefer" class="button secondary" data-i18n="UpdatesAtNextLaunch"></button><button id="updatesClearDeferred" class="text-button hidden" data-i18n="UpdatesCancelDeferred"></button></div>
+              <div id="updatesError" class="release-error hidden" role="status"></div>
+            </section>
+            <details id="updatesNotesWrap" class="credits-group release-notes hidden"><summary class="credits-summary"><b data-i18n="UpdatesReleaseNotes"></b><i class="credits-chevron"></i></summary><div id="updatesNotes" class="release-notes-text"></div></details>
+            <div class="release-preferences">
+              <label class="player-switch-card"><input id="updatesAuto" type="checkbox" checked><span class="mini-switch-visual"></span><span><b data-i18n="UpdatesAutoCheck"></b><small data-i18n="UpdatesAutoCheckHint"></small></span></label>
+              <label class="player-switch-card"><input id="updatesPrerelease" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UpdatesPrerelease"></b><small data-i18n="UpdatesPrereleaseHint"></small></span></label>
+              <label class="player-switch-card"><input id="updatesComponentsAuto" type="checkbox" checked><span class="mini-switch-visual"></span><span><b data-i18n="ComponentsAutoCheck"></b><small data-i18n="ComponentsAutoCheckHint"></small></span></label>
+            </div>
+            <div class="about-section-heading"><div><h4 data-i18n="ComponentsTitle"></h4><p id="componentsHint" data-i18n="ComponentsPublisherHint"></p></div><button id="componentsCheck" class="button secondary small" data-i18n="ComponentsCheck"></button></div><p id="componentsDirectory" class="component-directory"></p>
+            <div id="componentList" class="component-list"></div>
+            <div id="componentsProgressWrap" class="component-progress hidden"><span id="componentsProgressText"></span><div id="componentsProgress" class="release-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-i18n-aria-label="ComponentsDownloading"><i></i></div><button id="componentsCancel" class="text-button" data-i18n="LyricsCancel"></button></div>
+            <p id="componentsError" class="release-error hidden" role="status"></p>
+            <p class="release-privacy-note" data-i18n="UpdatesPrivacyNote"></p>
+          </section>
+          <section class="settings-page language-settings-page" data-settings-panel="language">
+            <div class="settings-page-title"><h3 data-i18n="LanguageSettingsTitle"></h3><p data-i18n="LanguageSettingsDescription"></p></div>
+            <div id="languageList" class="language-list" role="radiogroup" data-i18n-aria-label="LanguageSettingsTitle"></div>
+            <p class="language-help" data-i18n="LanguageCatalogHelp"></p>
+            <div class="language-actions"><button id="reloadLanguagesBtn" class="button secondary" data-i18n="LanguageReloadButton"></button><button id="openLanguagesFolderBtn" class="button secondary" data-i18n="LanguageOpenFolder"></button></div>
+            <div id="languageStatus" class="language-status" role="status" aria-live="polite"></div>
+            <div id="languageDiagnostics" class="language-diagnostics" role="status"></div>
+          </section>
+          <section class="settings-page" data-settings-panel="library">
+            <div class="settings-page-title"><h3 data-i18n="UILibrary"></h3><p data-i18n="UIPulseDeckStaysLocalFirstYourMusicAndSettings"></p></div>
+            <div class="setting-card"><div><strong data-i18n="UILocalFiles"></strong><span data-i18n="UIMusicIsStoredInMusicAndItsSubfolders"></span></div><button id="settingsFolderBtn" class="button accent-outline library-action-button"><span data-icon="folder"></span><span data-i18n="UIOpenMusic"></span></button></div>
+            <div class="setting-card"><div><strong data-i18n="UIOnlineImport"></strong><span data-i18n="UIYouTubeAndSoundCloudAfterDownloadingPulseDeckVerifiesThe"></span></div><button id="settingsOnlineBtn" class="button accent-outline library-action-button"><span data-icon="cloudDownload"></span><span data-i18n="UIOpenImport"></span></button></div>
+            <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultLibraryView"></strong><span data-i18n="UIRestoreCardsAndNewestFirstSortingMusicFavourites2"></span></div><button class="button secondary settings-reset-button" data-reset-settings="library"><span data-icon="undo"></span><span data-i18n="UIResetLibrary"></span></button></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="colorModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal color-modal advanced-color-modal" role="dialog" aria-modal="true" aria-labelledby="colorTitle">
+      <div class="modal-header"><div><span class="eyebrow" data-i18n="UIColour"></span><h2 id="colorTitle" data-i18n="UIChooseACustomColour"></h2></div><button class="icon-button modal-close" data-close="colorModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button></div>
+      <div id="colorPlane" class="color-plane" tabindex="0"><i id="colorPlaneCursor"></i></div>
+      <div class="hue-control"><input id="colorHue" type="range" min="0" max="360" value="160" step="1" aria-label="" data-i18n-aria-label="UIHue"></div>
+      <div class="hex-field-row"><label data-i18n="UIHEX"></label><input id="colorHexInput" value="#b038ae" maxlength="7" spellcheck="false"><button id="copyHexBtn" class="icon-button" title="" data-i18n-title="UICopyHEX"><span data-icon="copy"></span></button></div>
+      <div class="color-tabs"><button class="active" data-color-model="rgb" data-i18n="UIRGB"></button><button data-color-model="hsl" data-i18n="UIHSL"></button></div>
+      <div id="rgbFields" class="color-number-grid"><label><span data-i18n="UIR"></span><input id="rgbRNumber" type="number" min="0" max="255"></label><label><span data-i18n="UIG"></span><input id="rgbGNumber" type="number" min="0" max="255"></label><label><span data-i18n="UIB"></span><input id="rgbBNumber" type="number" min="0" max="255"></label></div>
+      <div id="hslFields" class="color-number-grid hidden"><label><span data-i18n="UIH2"></span><input id="hslHNumber" type="number" min="0" max="360"></label><label><span data-i18n="UIS9"></span><input id="hslSNumber" type="number" min="0" max="100"></label><label><span data-i18n="UIL"></span><input id="hslLNumber" type="number" min="0" max="100"></label></div>
+      <div id="colorSwatch" class="color-swatch"></div>
+      <div class="color-actions"><button id="rgbCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="rgbApply" class="button primary" data-i18n="UIApply"></button></div>
+    </div>
+  </div>
+
+  <div id="customIconModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal custom-icon-modal" role="dialog" aria-modal="true" aria-labelledby="customIconTitle">
+      <div class="modal-header"><div><span class="eyebrow" data-i18n="UIApplicationIcon"></span><h2 id="customIconTitle" data-i18n="UICustomiseTheApplicationIcon"></h2></div><button class="icon-button modal-close" data-close="customIconModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button></div>
+      <div class="custom-icon-layout">
+        <div class="custom-icon-preview-card"><div id="customIconPreview" class="custom-icon-preview"></div><small data-i18n="UICustomIconPreviewHelp"></small></div>
+        <div class="custom-icon-controls">
+          <div class="setting-label-row"><label data-i18n="UIBackgroundGradient"></label><small data-i18n="UICustomIconGradientHelp"></small></div>
+          <div id="customBgStops" class="custom-stop-list"></div>
+          <div class="custom-stop-actions"><button id="addBgStopBtn" class="button secondary small"><span data-icon="plus"></span><span data-i18n="UIAddColourStop"></span></button></div>
+          <div class="setting-label-row"><label data-i18n="UIMonitorColour"></label><small data-i18n="UIMonitorColourHelp"></small></div>
+          <div id="customFgStops" class="custom-stop-list"></div>
+          <div class="custom-stop-actions"><button id="addFgStopBtn" class="button secondary small"><span data-icon="plus"></span><span data-i18n="UIAddColourStop"></span></button></div>
+        </div>
+      </div>
+      <div class="color-actions"><button id="customIconCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="customIconSave" class="button primary"><span data-icon="save"></span><span data-i18n="UISaveAndUse"></span></button></div>
+    </div>
+  </div>
+
+  <div id="categoryStyleModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal category-style-modal" role="dialog" aria-modal="true" aria-labelledby="categoryStyleTitle">
+      <div class="modal-header"><div><span class="eyebrow" data-i18n="UIPlaylist"></span><h2 id="categoryStyleTitle" data-i18n="UIChangeAppearance"></h2></div><button class="icon-button modal-close" data-close="categoryStyleModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button></div>
+      <label class="field-label"><span data-i18n="UITitle"></span><input id="categoryNameInput" maxlength="40" autocomplete="off"></label>
+      <div class="category-editor-section"><label data-i18n="UIIcon"></label><div id="categoryIconGrid" class="category-icon-grid"></div></div>
+      <div class="category-editor-section"><label data-i18n="UIColour"></label><div id="categoryColorOptions" class="category-color-options"></div></div>
+      <label class="switch-row"><input id="categoryGlowToggle" type="checkbox"><span></span><b data-i18n="UIGlow"></b><small data-i18n="UIGradientRisesSoftlyFromThePlaylistLine"></small></label>
+      <div id="categoryGlowSettings" class="category-glow-settings hidden">
+        <div class="intensity-row"><label data-i18n="UIIntensity"></label><input id="categoryGlowIntensity" type="range" min="0" max="100" value="45"><output id="categoryGlowIntensityValue">45%</output></div>
+        <div class="gradient-head"><label><span data-i18n="LyricsGradient"></span> <small id="gradientCount">1/4</small></label></div>
+        <div id="categoryGradientList" class="category-gradient-list"></div>
+        <button id="addGradientColorBtn" class="button secondary full"><span data-icon="plus"></span><span data-i18n="LyricsAddColour"></span></button>
+      </div>
+      <div id="categoryPreview" class="category-preview"></div>
+      <div class="vault-editor-security">
+        <label><input id="categoryProtectedToggle" type="checkbox"> <span data-i18n="UIProtectedPlaylist"></span></label>
+        <div id="categoryPasswordFields" class="hidden">
+          <label class="vault-password-field"><span data-i18n="UIPasswordCharacters"></span><input id="categoryPasswordInput" type="password" maxlength="96" autocomplete="new-password" spellcheck="false"></label>
+          <label class="vault-password-field"><span data-i18n="UIRepeatPassword"></span><input id="categoryPasswordConfirm" type="password" maxlength="96" autocomplete="new-password" spellcheck="false"></label>
+          <p class="vault-warning" data-i18n="UISongsWillDisappearFromOtherPlaylistsAndWill"></p>
+        </div>
+        <p id="categoryProtectionNote" class="hidden" data-i18n="UIThisPlaylistIsAlreadyProtectedDisablingProtectionRequires"></p>
+      </div>
+      <div class="color-actions"><button id="categoryStyleCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="categoryStyleSave" class="button primary" data-i18n="UISave"></button></div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal compact" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-icon" id="confirmIcon"><span data-icon="trash"></span></div>
+      <h2 id="confirmTitle" data-i18n="UIConfirmAction"></h2>
+      <p id="confirmText" data-i18n="UIReviewTheActionBeforeContinuing"></p>
+      <div class="confirm-actions"><button id="confirmCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="confirmDelete" class="button primary" data-i18n="UIConfirm"></button></div>
+    </div>
+  </div>
+
+  <div id="mergeModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal merge-modal" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
+      <div class="modal-header"><div><span class="eyebrow" data-i18n="UIPLAYLISTS"></span><h2 id="mergeTitle" data-i18n="UIHowShouldTheseBeMerged"></h2></div></div>
+      <p id="mergePlaylistNames" class="merge-playlist-names"></p>
+      <p class="merge-explanation" data-i18n="UISelectADestinationPlaylistACustomSourceWill"></p>
+      <div id="mergeChoices" class="merge-choices" role="radiogroup" aria-label="" data-i18n-aria-label="UIWhichPlaylistToKeep"></div>
+      <p id="mergeError" class="merge-error" role="alert"></p>
+      <div class="confirm-actions"><button id="mergeCancel" class="button secondary" data-i18n="LyricsCancel"></button><button id="mergeConfirm" class="button primary" disabled data-i18n="UIMerge"></button></div>
+    </div>
+  </div>
+  <div id="trackSelectionStatus" class="track-selection-status hidden" role="status">
+    <strong id="trackSelectionCount" data-i18n="UISelected3"></strong><span data-i18n="UIEscToClear"></span>
+    <button id="trackSelectionActions" type="button" data-i18n="UIActions"></button>
+    <button id="trackSelectionClear" type="button" aria-label="" data-i18n-aria-label="UIClearSelection" title="" data-i18n-title="UIClearSelection"><span data-icon="close"></span></button>
+  </div>
+  <span id="reorderStatus" class="sr-only" role="status" aria-live="polite"></span>
+  <div id="contextMenu" class="context-menu hidden" role="menu"></div>
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+  <div id="vaultPasswordModal" class="modal-layer hidden" aria-hidden="true">
+    <div class="modal vault-password-modal" role="dialog" aria-modal="true" aria-labelledby="vaultPasswordTitle">
+      <div class="modal-header"><div><span class="eyebrow" data-i18n="UIProtectedPlaylist"></span><h2 id="vaultPasswordTitle" data-i18n="UIEnterPassword"></h2></div><button class="icon-button modal-close" data-close="vaultPasswordModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button></div>
+      <form id="vaultPasswordForm" class="vault-password-body" autocomplete="off">
+        <p id="vaultPasswordText"></p><div id="vaultPasswordFields"></div><p id="vaultPasswordError" class="vault-error" role="alert"></p>
+        <div class="vault-password-actions"><button type="button" class="button secondary" data-close="vaultPasswordModal" data-i18n="LyricsCancel"></button><button type="submit" id="vaultPasswordSubmit" class="button primary" data-i18n="PlayerOverlayResume"></button></div>
+      </form>
+    </div>
+  </div>
+  <script src="../shared/i18n.js"></script>
+  <script src="../i18n/dom.js"></script>
+  <script src="icons.js"></script>
+  <script src="../shared/playlist-icons.js"></script>
+  <script src="../shared/app-icon.js"></script>
+  <script src="../shared/surface-style.js"></script>
+  <script src="../shared/library-model.js"></script>
+  <script src="track-selection.js"></script>
+  <script src="track-reorder.js"></script>
+  <script src="playlist-reorder.js"></script>
+  <script src="playlist-selection.js"></script>
+  <script src="../shared/lyrics-search.js"></script>
+  <script src="../shared/lyrics.js"></script>
+  <script src="../shared/lyrics-colors.js"></script>
+  <script src="../shared/lyrics-editor.js"></script>
+  <script src="../shared/lyrics-operations.js"></script>
+  <script src="../shared/lyrics-rhythm.js"></script>
+  <script src="lyric-time-field.js"></script>
+  <script src="lyrics-scene.js"></script>
+  <script src="lyrics-immersive.js"></script>
+  <script src="lyrics-view.js"></script>
+  <script src="lyrics-studio.js"></script>
+  <script src="release-center.js"></script>
+  <script src="../shared/online-search.js"></script>
+  <script src="online-search-ui.js"></script>
+  <script src="listening-tracker.js"></script>
+  <script src="../shared/track-enrichment.js"></script>
+  <script src="track-tools.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

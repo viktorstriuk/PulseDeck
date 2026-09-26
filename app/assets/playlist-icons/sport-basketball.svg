@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" color="#000" width="24" height="24"><g transform="translate(0.120000 0.120000) scale(0.99000000)"><defs>
+
+</defs>
+
+<g id="ic-sport-basketball">
+
+<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.71717" stroke-linecap="round" stroke-linejoin="round" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+
+<line x1="5" y1="5" x2="19" y2="19" fill="none" stroke="currentColor" stroke-width="1.71717" stroke-linecap="round" stroke-linejoin="round" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+
+<line x1="19" y1="5" x2="5" y2="19" fill="none" stroke="currentColor" stroke-width="1.71717" stroke-linecap="round" stroke-linejoin="round" fill-rule="nonzero" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+
+<path d="M12,2A10,10,0,0,1,2,12" fill="none" stroke="currentColor" stroke-width="1.71717" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+
+<path d="M12,22A10,10,0,0,1,22,12" fill="none" stroke="currentColor" stroke-width="1.71717" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd" clip-rule="nonzero" opacity="1" fill-opacity="1" stroke-opacity="1"/>
+
+</g>
+
+</g></svg>

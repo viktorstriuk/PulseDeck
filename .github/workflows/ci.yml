@@ -1,0 +1,56 @@
+name: Tests and Windows build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Install test-only tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install --user -r tests/requirements.txt
+          python3 -m playwright install --with-deps chromium
+          CHROME=$(python3 -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')
+          sudo ln -sf "$CHROME" /usr/bin/chromium
+      - name: Node tests and language audit
+        run: |
+          node --test tests/*.test.js
+          node tools/audit-i18n.js
+      - name: Generate payload and cross-compile Windows x64 installer
+        run: python3 tools/build-release.py
+      - name: Go tests with race detector
+        run: |
+          (cd native && go test -race ./...)
+          (cd installer/engine && go test -race ./...)
+      - name: Browser regression and UI screenshots
+        run: python3 tools/run-browser-tests.py
+      - name: Upload test evidence and untrusted CI build
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-${{ github.run_id }}
+          path: |
+            test-results/
+            dist/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,240 @@
+/* PulseDeck 2.7.1. Decorative strokes never participate in layout.
+   Native borders retain their original (usually 1px) geometry but are clear.
+   Inset shadows are capped for compact controls. Playlist tabs, colour swatches,
+   covers, waveform/timing canvases and range tracks are deliberately not surfaces.
+   See tests/browser-surfaces-271.py for coverage, geometry and exclusion checks. */
+html[data-surface-style] {
+  --panel-bg:color-mix(in srgb,var(--surface-2) calc(var(--surface-opacity,.94) * 100%),transparent);
+  --panel-gradient:none;
+  --panel-border:rgba(var(--surface-border-rgb,217,229,240),var(--surface-border-alpha,.18));
+  --panel-filter:none;
+  --surface-effective-width:var(--surface-border-width,1px);
+  --panel-hover-tint:color-mix(in srgb,var(--text) calc(var(--surface-opacity,.94) * 5%),transparent);
+  --panel-selected-tint:color-mix(in srgb,var(--accent) calc(var(--surface-opacity,.94) * 14%),transparent);
+}
+html[data-surface-style=glass] { --panel-filter:blur(16px) saturate(1.12); }
+html[data-surface-style=gradient] {
+  --panel-gradient:linear-gradient(145deg,rgba(var(--accent-rgb),calc(var(--surface-opacity,.94) * .16)),transparent 76%);
+}
+html[data-surface-style=translucent] { --panel-filter:none; }
+html[data-surface-clear=true] { --panel-filter:none; }
+html[data-surface-style=outline] {
+  --panel-bg:transparent;--panel-gradient:none;--panel-filter:none;
+  --panel-hover-tint:transparent;--panel-selected-tint:transparent;
+}
+html[data-surface-style=invisible] {
+  --panel-bg:transparent;--panel-gradient:none;--panel-border:transparent;--panel-filter:none;
+  --surface-effective-width:0px;--panel-hover-tint:transparent;--panel-selected-tint:transparent;
+}
+/* Real components, not guesses at class names. All nested surface rules reset
+   their custom properties so an active parent's stroke cannot leak to children. */
+html[data-surface-style] :where(
+  .modal, .ly-dialog, .library.list-view, .category-sidebar, .track-card,
+  .setting-card, .player-config-card, .player-control-field, .player-switch-card,
+  .settings-reset-footer, .hotkey-row, .background-opacity-row, .switch-row:not(.compact-switch),
+  .trim-media, .trim-control-row, .auto-trim-card, .online-preview-bar, .notice,
+  .vault-lock-panel, .vault-info-banner, .vault-warning, .vault-editor-security,
+  .game-overlay-explainer, .game-overlay-live-main, .game-overlay-meta,
+  .game-overlay-detected-item, .game-overlay-rtss-metrics>span, .game-overlay-compat>span,
+  .game-overlay-anchor-field, .game-overlay-offset-grid, .game-overlay-stretch-state,
+  .merge-choice, .language-option, .custom-stop-row, .gradient-color-row, .custom-icon-preview, .category-preview, .category-icon-grid, .trim-wave,
+  .ly-word-panel, .ly-result, .ly-timing-row, .ly-gradient-stop, .ly-warning, .ly-studio-player,
+  .button.secondary, .button.accent-outline, .icon-button:not(.subtle):not(#prevBtn):not(#nextBtn),
+  .select-trigger, .segmented, .source-tab, .online-download, .hotkey-combo,
+  .element-toggle-grid button, .choice-button-row button, .visualizer-style-grid button,
+  .game-overlay-mode-grid button, .game-overlay-anchor-grid button, .overlay-color-button,
+  .app-icon-grid>button, .trim-nudges button, .trim-transport-button.primary,
+  .top-search, .modal-search, .url-import, .track-selection-status button,
+  .field-label input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]),
+  .vault-inline-form input, .vault-password-field input, .batch-target,
+  .game-overlay-offset-grid input, .ly-dialog select, #lyricsInput,
+  .ly-dialog input:not([type=color]):not([type=range]):not([type=checkbox]):not(.ly-time-part),
+  .ly-time-segments, .game-overlay-status-pill, .game-overlay-allow-chip, .game-overlay-flow>span,
+  .context-menu, .context-submenu, .select-popover, .ly-studio-menu, .track-selection-status,
+  .toast, #vaultOperationStatus, .titlebar, .player,
+  .playlist-drag-ghost.playlist-drag-from-sidebar
+) {
+  --pd-ring-width:var(--surface-effective-width);
+  --pd-ring-color:var(--panel-border);
+  --pd-highlight:transparent;
+  background:linear-gradient(var(--pd-highlight),var(--pd-highlight)),var(--panel-gradient),var(--panel-bg)!important;
+  border-color:transparent!important;
+  box-shadow:inset 0 0 0 var(--pd-ring-width) var(--pd-ring-color)!important;
+  /* No filter here: fixed-position descendants must keep viewport coordinates. */
+  backdrop-filter:none;
+}
+/* Blur only on standalone outer surfaces, never on the ancestor of a fixed menu. */
+html[data-surface-style] :where(.modal,.ly-dialog,.category-sidebar,.track-card,.library.list-view,.toast,.titlebar,.player,.context-submenu,.select-popover,.ly-studio-menu,
+  .playlist-drag-ghost.playlist-drag-from-sidebar) { backdrop-filter:var(--panel-filter); }
+/* 6px on a 38px control is too much. Adaptive non-layout strokes leave icons,
+   labels and the active segment in exactly their original positions. */
+html[data-surface-style] :where(.button.secondary,.button.accent-outline,.icon-button:not(.subtle):not(#prevBtn):not(#nextBtn),
+  .select-trigger,.source-tab,.online-download,.hotkey-combo,.element-toggle-grid button,
+  .choice-button-row button,.visualizer-style-grid button,.game-overlay-mode-grid button,
+  .game-overlay-anchor-grid button,.overlay-color-button,.app-icon-grid>button,.trim-nudges button,
+  .trim-transport-button.primary,.top-search,.modal-search,.url-import,.player-switch-card,
+  .game-overlay-status-pill,.game-overlay-allow-chip,.game-overlay-flow>span,
+  .field-label input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]),
+  .vault-inline-form input,.vault-password-field input,.batch-target,.game-overlay-offset-grid input,
+  .ly-dialog select,#lyricsInput,.ly-dialog input:not([type=color]):not([type=range]):not([type=checkbox]):not(.ly-time-part),
+  .ly-time-segments,.track-selection-status button,.titlebar,.player,
+  .playlist-drag-ghost.playlist-drag-from-sidebar) { --pd-ring-width:min(var(--surface-effective-width),3px); }
+html[data-surface-style] :where(.segmented,.context-menu,.context-submenu,.select-popover,.ly-studio-menu) {
+  --pd-ring-width:min(var(--surface-effective-width),2px);
+}
+/* The table is ONE surface. Rows remain transparent instead of stacking opaque
+   grey panels on top of each other; only the selected/hovered row is tinted. */
+html[data-surface-style] :where(.list-head,.list-row) { background:transparent;border-color:var(--panel-border); }
+html[data-surface-style] .list-row:hover { background:var(--panel-hover-tint); }
+html[data-surface-style] .list-row.active { background:var(--panel-selected-tint); }
+html[data-surface-style] .settings-nav { background:color-mix(in srgb,var(--panel-bg) 40%,transparent); }
+/* All button states remain legible. Colour palettes and the monitor image are
+   not recoloured here; primary/danger action colours keep their own semantics. */
+html[data-surface-style] :where(.track-card,.button.secondary,.button.accent-outline,.icon-button:not(.subtle):not(#prevBtn):not(#nextBtn),
+  .select-trigger,.source-tab,.online-download,.hotkey-combo,.element-toggle-grid button,
+  .choice-button-row button,.visualizer-style-grid button,.game-overlay-mode-grid button,
+  .game-overlay-anchor-grid button,.overlay-color-button,.app-icon-grid>button,.language-option):hover:not(:disabled) {
+  --pd-highlight:var(--panel-hover-tint);
+}
+html[data-surface-style] :where(.track-card.active,.source-tab.active,.element-toggle-grid button.active,
+  .choice-button-row button.active,.visualizer-style-grid button.active,.game-overlay-mode-grid button.active,
+  .game-overlay-anchor-grid button.active,.app-icon-grid>button.active,.hotkey-row.recording) {
+  --pd-highlight:var(--panel-selected-tint);
+  --pd-ring-color:color-mix(in srgb,var(--accent) 60%,var(--panel-border));
+}
+html[data-surface-style] :where(.language-option:has(input:checked),.merge-choice:has(input:checked)) {
+  --pd-highlight:var(--panel-selected-tint);--pd-ring-color:var(--accent);
+}
+html[data-surface-style] :where(.segmented .segment.active,.settings-nav-item.active) { background:var(--panel-selected-tint); }
+html[data-surface-style] :where(.context-item:hover,.select-popover button:hover,.ly-studio-menu button:hover) { background:var(--panel-hover-tint); }
+html[data-surface-style] .online-item { background:transparent; }
+html[data-surface-style] .online-item:is(:hover,.download-active) { background:var(--panel-selected-tint); }
+/* Selection is feedback, not decorative styling: keep it visible at zero stroke. */
+html[data-surface-style] :where(.track-card.track-selected,.list-row.track-selected) {
+  background:var(--panel-selected-tint)!important;
+  box-shadow:inset 0 0 0 2px var(--accent)!important;
+}
+/* Never manufacture surfaces for normal playlist labels (both rails + preview).
+   Multi-selection and track-drop feedback are independent existing interactions. */
+html[data-surface-style] :where(#categoryChips,#categorySidebar,.category-preview) .category-tab:not(.playlist-selected):not(.track-drop-target) {
+  background:transparent!important;border:0;box-shadow:none!important;backdrop-filter:none;
+}
+html[data-surface-style] .playlist-drag-ghost:not(.playlist-drag-from-sidebar) {
+  background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none;
+}
+/* Identical base line for glow and underline in side rail/preview, including
+   the selected state that removes padding. Top rail uses its existing -4px. */
+.category-sidebar .category-visual::before,.category-sidebar .category-visual::after,
+.category-preview .category-visual::before,.category-preview .category-visual::after { bottom:0; }
+
+/* Surface settings: same card, headings, type and controls as player settings. */
+.surface-style-card { margin:18px 0 14px; }
+.surface-style-card .player-config-head { margin-bottom:16px; }
+.surface-style-options { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:16px; }
+.surface-style-options>button {
+  min-width:0;position:relative;border:1px solid var(--line);border-radius:12px;
+  padding:10px 7px 12px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  background:transparent;color:var(--text-2);font-size:10px;font-weight:650;cursor:pointer;
+}
+.surface-style-options>button>span[data-i18n] { line-height:1.35;min-height:27px;display:grid;align-items:center;text-align:center;overflow-wrap:anywhere; }
+.surface-style-options>button.active { color:var(--accent);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent); }
+.surface-style-options>button:hover { border-color:var(--accent); }
+.surface-choice-check { position:absolute;right:6px;top:6px;opacity:0; }
+.surface-style-options>button.active .surface-choice-check { opacity:1; }
+.surface-mode-demo { width:58px;height:37px;position:relative;border-radius:8px;background:var(--surface-3);border:1px solid var(--line-strong);overflow:hidden; }
+.surface-mode-demo i { position:absolute;width:13px;height:13px;left:8px;top:10px;border-radius:4px;background:var(--accent);opacity:.8; }
+.surface-mode-demo b,.surface-mode-demo em { position:absolute;left:27px;right:6px;height:3px;top:12px;border-radius:3px;background:var(--text-2);opacity:.75; }
+.surface-mode-demo em { top:19px;right:12px;opacity:.35; }
+.surface-mode-demo.glass { background:linear-gradient(125deg,color-mix(in srgb,var(--accent) 18%,var(--surface-3)),color-mix(in srgb,var(--text) 8%,var(--surface-2))); }
+.surface-mode-demo.gradient { background:linear-gradient(130deg,color-mix(in srgb,var(--accent) 38%,var(--surface-2)),var(--surface-2)); }
+.surface-mode-demo.translucent { background:color-mix(in srgb,var(--surface-3) 45%,transparent); }
+.surface-mode-demo.outline { background:transparent;border-color:var(--text-3); }
+.surface-mode-demo.invisible { background:transparent;border-color:transparent; }
+.surface-tuning { gap:12px; }
+.surface-tuning .player-control-field { display:flex;flex-direction:column;gap:0;padding:13px; }
+.surface-tuning .setting-label-row { margin-bottom:9px;align-items:center;gap:10px; }
+.surface-tuning .setting-label-row label { font-size:10.5px;line-height:1.4;color:var(--text-2); }
+.surface-tuning output { flex-shrink:0;color:var(--accent);font-size:10.5px;font-variant-numeric:tabular-nums;white-space:nowrap; }
+.surface-control-help { display:block;color:var(--text-3);font-size:9px;line-height:1.5;margin-top:8px; }
+/* Visible track + larger pointer target, no inherited text-field backgrounds. */
+.surface-tuning input[type=range],.custom-stop-row input[type=range] {
+  -webkit-appearance:none;appearance:none;display:block;width:100%;height:22px;
+  margin:0;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;
+}
+.surface-tuning input[type=range]::-webkit-slider-runnable-track,.custom-stop-row input[type=range]::-webkit-slider-runnable-track {
+  height:5px;border-radius:999px;background:linear-gradient(90deg,var(--accent) var(--value),var(--line-strong) var(--value));
+}
+.surface-tuning input[type=range]::-webkit-slider-thumb,.custom-stop-row input[type=range]::-webkit-slider-thumb {
+  appearance:none;margin-top:-4.5px;width:14px;height:14px;transform:none;
+  border:2px solid var(--surface);border-radius:50%;background:var(--text);box-shadow:0 1px 4px #0004;
+}
+.surface-tuning input[type=range]::-moz-range-track,.custom-stop-row input[type=range]::-moz-range-track { height:5px;border-radius:999px;background:var(--line-strong); }
+.surface-tuning input[type=range]::-moz-range-progress,.custom-stop-row input[type=range]::-moz-range-progress { height:5px;border-radius:999px;background:var(--accent); }
+.surface-tuning input[type=range]::-moz-range-thumb,.custom-stop-row input[type=range]::-moz-range-thumb { width:12px;height:12px;border:2px solid var(--surface);border-radius:50%;background:var(--text); }
+.surface-tuning .control-disabled { opacity:.48; }
+.surface-colour-field .control-caption { margin:0 0 8px;font-size:10.5px;color:var(--text-2);text-transform:none;letter-spacing:normal; }
+#surfaceBorderColorBtn { width:100%;height:34px;min-height:34px;padding:0 8px;gap:8px; }
+#surfaceBorderColorBtn i { width:18px;height:18px;flex-shrink:0; }
+#surfaceBorderColorBtn span { font-size:10px; }
+#surfaceBorderHex { margin-left:auto;color:var(--text-3);font-size:9px; }
+.surface-settings-footer { display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px; }
+.surface-settings-footer .setting-help { margin:0;max-width:400px;color:var(--text-3); }
+.surface-settings-footer .button { flex-shrink:0; }
+.original-monitor-mark {
+  display:block;width:58px;height:58px;background:currentColor;
+  mask:url('../assets/app-icons/monitor-mark.svg') center/contain no-repeat;
+  -webkit-mask:url('../assets/app-icons/monitor-mark.svg') center/contain no-repeat;
+}
+.custom-app-icon-option .custom-icon-placeholder { background:transparent;color:var(--text-2); }
+@media(max-width:1040px) {
+  .surface-style-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:820px) {
+  .surface-style-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .surface-tuning.player-control-grid { grid-template-columns:1fr; }
+  .surface-settings-footer { flex-direction:column;align-items:flex-start; }
+}
+@media(forced-colors:active) {
+  .surface-style-options>button.active { outline:2px solid Highlight; }
+  .surface-tuning input[type=range]::-webkit-slider-runnable-track { background:CanvasText; }
+  .surface-tuning input[type=range]::-webkit-slider-thumb { background:Highlight; }
+}
+/* The drag primitive has a legacy !important fill; use only the sidebar copy. */
+html[data-surface-style] .playlist-drag-ghost.chip.playlist-drag-from-sidebar {
+  background:var(--panel-gradient),var(--panel-bg)!important;
+  box-shadow:inset 0 0 0 min(var(--surface-effective-width),3px) var(--panel-border)!important;
+}
+/* Full-width application bars need a separator, not a framed rectangle. */
+html[data-surface-style] .titlebar { box-shadow:inset 0 calc(-1 * min(var(--surface-effective-width),2px)) 0 var(--panel-border)!important; }
+html[data-surface-style] .player { box-shadow:inset 0 min(var(--surface-effective-width),2px) 0 var(--panel-border)!important; }
+/* 34px segments + 3px padding + 1px native border on each side = 42px.
+   The old 40px wrapper clipped its active child even before custom strokes. */
+.toolbar-toggle-group .compact-segmented { height:42px;align-items:center; }
+/* A translucent/light dialog must not put dark text on a black scrim. */
+html[data-surface-style] .modal-layer { background:color-mix(in srgb,var(--bg) 68%,transparent); }
+html[data-surface-style] .ly-dialog::backdrop { background:color-mix(in srgb,var(--bg) 68%,transparent); }
+/* The legacy compact breakpoint hid BOTH spans, including the nav icon.
+   Keep real icon targets in a narrow rail instead of a blank settings sidebar. */
+@media(max-width:860px) {
+  .settings-layout { grid-template-columns:72px minmax(0,1fr); }
+  .settings-nav-item { min-height:44px; }
+  .settings-nav-item>span:first-child { display:grid;place-items:center; }
+  .settings-nav-item>span:last-child { display:none; }
+  .settings-about { grid-template-columns:1fr;justify-items:center;padding:14px 0; }
+  .settings-about-copy,.settings-about-arrow { display:none; }
+}
+
+/* 2.8.2: independently editable component profiles. */
+.surface-all-row {margin:0!important;min-height:44px;gap:10px;}
+.surface-all-row strong {font-size:11px;line-height:1.5;font-weight:600;}
+#surfaceScopeNote {margin:8px 0 12px;}
+.surface-target-options {display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px;}
+.surface-target-options button {border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--text-2);padding:8px 10px;min-height:34px;cursor:pointer;font:inherit;font-size:10px;}
+.surface-target-options button.active {background:color-mix(in srgb,var(--accent) 12%,transparent);border-color:var(--accent);color:var(--text);}
+.surface-reset-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;}
+.surface-reset-actions .button {white-space:normal;height:auto;min-height:34px;}
+html[data-surface-style] .context-submenu .new-playlist-item {justify-content:flex-start;text-align:left;background:transparent;border-top-color:var(--panel-border);}
+html[data-surface-style] .context-submenu .new-playlist-item:hover {background:var(--panel-hover-tint);}
+/* About card participates in Blocks, without adding a blur/filter ancestor. */
+html[data-surface-style] .about-author {background:var(--panel-gradient),var(--panel-bg);border-color:transparent;box-shadow:inset 0 0 0 var(--surface-effective-width) var(--panel-border);}
+@media(max-width:820px){.surface-reset-actions{justify-content:flex-start}.surface-target-options button{flex:1 1 auto}}

@@ -1,0 +1,502 @@
+{
+  "schema": 1,
+  "assetPagesSupplied": false,
+  "statement": "SVG Repo Public Domain declared by author; exact source pages not supplied. See CREDITS.md.",
+  "files": [
+    {
+      "path": "app/assets/playlist-icons/music-2.svg",
+      "sha256": "ac77c60f5acb59d2a808cd0c7c0af8f4fc27c4e5b27c856f83b9cbbe839393da",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-circle.svg",
+      "sha256": "f4c0444e91b5ed077735b54df9b6c21c1f8f5219752548a5a9db4469d0051b77",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/error.svg",
+      "sha256": "cb1656c153702b138001eae72f322bcf7de0ea24209d1c9d3cccb3724d7b8b3c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-recreation-football-activity-ball.svg",
+      "sha256": "66f1e774238c40b6dd3ce3f5657073dc60fd7ab7e409bb88d0e86cfbe5308f1b",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/acoustic-guitar-musician-2.svg",
+      "sha256": "bc82d2793700ac930391a27bbceaf5b39cb8f0efaf6758072ab945c87acb7e12",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-note.svg",
+      "sha256": "1659f73051896d394da6a3454193c63dafc2bf6e54fe9379bf4278021c0543ec",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/night.svg",
+      "sha256": "b69161e3f2ec7b44b72192aab668ce61d5e73d9018fd23077534e93e6bf25117",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/work.svg",
+      "sha256": "8da71c36ba6058d318c2d0fe429ff91b90eb28302119aae01e53f39aa7de386c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-rugby.svg",
+      "sha256": "458a91becadbe489bc222bb435e9eee174244f4b73334cd831ea58ef70198340",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/radio.svg",
+      "sha256": "21e3018c9dac58b97a726c60b3868a99b683315d9cbb9af8bc4f4481eeeb15e1",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/car.svg",
+      "sha256": "64f607ae66c5499f0669911240429aa98b240682f6f092df2e67e9f1818f0715",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/desk-work.svg",
+      "sha256": "ec726f8582ed2633c4192f1ca0803ad795b5b45bcb1c10819872057973e0da15",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/happy-alt.svg",
+      "sha256": "83a6b8b2b20d942fbe5734344f835ca0f23a352d6c8c14b3c6e5e44ab8ebf6bc",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-car-car.svg",
+      "sha256": "6f5f59b5bd795627af013d3822be53c60a173d5bbe0556fb1ba2dafc12d2c2fc",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/trumpet.svg",
+      "sha256": "6102993047dc2498b95c3d4bc1b491e50afd39f5fc7b9938a0ed9726b1d730f8",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/alisa.svg",
+      "sha256": "19feff3b4093636834e1167adaf3abf8c441c81f1301ea4670aef5cdb2fbc887",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sad-cry-depression-lonely.svg",
+      "sha256": "7a410441452082763bef61c21541f15a71308ee4d2f56a6c284a39d388382f09",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/star.svg",
+      "sha256": "9ab4dbaf4caea1a493e56da3914d2291cf7c7c5ce8ddc2346f6d8f3957504035",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/books-study-learning-education-reading-library.svg",
+      "sha256": "dcd2865dcfedfa8191d569bdd6144ce1d2816f4020ee69022649e3ebc8fb6b0a",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-artist.svg",
+      "sha256": "a16bac8569c65a93eb721512e41f3715a5f2fa0ea4432771cd73f86d32d14e62",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/artist.svg",
+      "sha256": "3473251a5dd4832cb27452ce38a36a1c1e2eba3ebe2d7e3b5bcfed863b64f02e",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/image.svg",
+      "sha256": "4031a45fd180f496545d55fd44241851735fffafcc484216a928c896f0d24cfb",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/phone.svg",
+      "sha256": "9a3a8822cc8dade78d660785772dbe15112ae26e2a2da93aaf82bcbb21ec1d80",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/camera.svg",
+      "sha256": "0e2f2841dbedf0e1bc93bc6f51ee6830a00427aef7531eeeb94e95a0874c93e6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/notifications.svg",
+      "sha256": "4b8e9f3bb74784d1dab058cb9d0eb0b6a0ca99d181881d30a8e7e8c4524b94f6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/happy-smile.svg",
+      "sha256": "6ca30264e2745b33c04547560c321a51c888b5983730a1219e6f9252bf4edb27",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music.svg",
+      "sha256": "3e56ac252950f56df625a757e6caed16334085d505f3b60893e3915464bb48a4",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/school.svg",
+      "sha256": "56d2ae5ee616e176d16636c8382df940bba64ba94f8be37c27e0f1b33fbe3152",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/crown-2.svg",
+      "sha256": "f0a582f41ea6b837998b8e8b3bb09a2795c7b1d5da6011678bd51493ab3f5f00",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery-60.svg",
+      "sha256": "92581278c51ea8c70d8010e076ad9633804a8f5868da85b45809aa1cc77f4594",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/crown-of-thorns.svg",
+      "sha256": "0c49315dfb41f9cc1f6e13f6223c72781cea90ebcb6171f96f6338ee666d7710",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/books-study-learning-education-reading-library-2.svg",
+      "sha256": "11d769c41ec27e4dd04be37edd029c93ce6bce29808b3e7de9cdc90717c02169",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/tag.svg",
+      "sha256": "0af2365ef96590d4d870160733e5f269af10baf8fd28a6660b2f36147986ae19",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/target.svg",
+      "sha256": "f01aa2f2d5416b1a36b8dcaafe676416da663cd685839826e5f443955420456c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/happy-tongue.svg",
+      "sha256": "7acc94ac4e55599f3a99b1d91801b1005bdc62e399ccdd4343120036da341a43",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/fire.svg",
+      "sha256": "5c99ca6e8ea2af2f4825beed203818250d93a448c51c9ee1c34ae9ec9f85e874",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/site.svg",
+      "sha256": "56e6d3d6f453a9b1ecce04400c33517d9424ac9bc7e29c38e0277878b9f74132",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/guitar-player.svg",
+      "sha256": "a7dd8a5b5bd2098f91979d4eb944d6f4e0ad52a43f4dc8f2322b0bd340d3babf",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery.svg",
+      "sha256": "d314f5fc396aa51f23d947eb828556f936212ffc98ecb3cbb2d5869ad28f4793",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/ella.svg",
+      "sha256": "610c6a9c78ba4d13231b1e0a3ed2a6bec84a4237f7d997d70285ed95d3c55034",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/musician.svg",
+      "sha256": "2e9c1a96a15f1553c6393b28f9ffe88b6272df5913e9dd0b25f93e664a6f343b",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/suicide.svg",
+      "sha256": "e3685eb06020aeb9d219529a274c9948931fa5f1e6e3d9af6e3f75c34e277984",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-medal.svg",
+      "sha256": "41260f33c8e355cacb33aae6d0068d201bcedb0c0083af41fea704eb645fa21e",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-bike.svg",
+      "sha256": "f712f947e7b086c788b933cbe7a2eac8580c7b631920c479b75e8f1391bfa25f",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-album.svg",
+      "sha256": "37384f52989959f11e12c7b4e9d9dbf01029a8258d52a5e0ff9133c94cd0a430",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/happy-skull.svg",
+      "sha256": "f58e5cd68168777d0abaa01b64ee2b50323ae4fc862fcae20edfcae47281fe1d",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery-80.svg",
+      "sha256": "86ddecc0d21ee5c75972761f5b6fa89a85a3721bac19fffc0289ca595a820a0c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-file.svg",
+      "sha256": "5b659982ca99e3654cdbe00f8f04fb214257a59997de02999a9bfc9cf27245b1",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/bus.svg",
+      "sha256": "5333f9f9ca9e4d0cf7488ccd682932f492fbfbf18a1b7c5ae69ff9193c675265",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/artist-2.svg",
+      "sha256": "8e521c2d9568d57f36953ee6f223251e61c6b724d6caf8cdcac8b754ddd24d1f",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/track.svg",
+      "sha256": "9adf13e0993c7c13d562b848276dbf2f478cda87e92f67ebabc81ce2fd0271d0",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-notes.svg",
+      "sha256": "fba11f5cddca80c1f3ff373c38fe0e432ca766aeffa942483e28887408e9365f",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/geolocation.svg",
+      "sha256": "4d5f5b294c6fda4a7dcf025dc2bb7be0b0a51a05ac2aa4ebc3ebf782d08bcc36",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/acoustic-guitar-musician.svg",
+      "sha256": "3a2a0fe46498c3d9ba72f3e9c7c9615ac3805d173b1257b06db755615326a8b5",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-basketball.svg",
+      "sha256": "63f76116ffce373651ef2a472f741625ada5f7dcbdc6db686b3d97e5c43deb4a",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/harrmony.svg",
+      "sha256": "ee4a981625c04320a2e71b5cf2c6e4658e26f205bdb12f11cbd7f8c434b6d67b",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-audio-party-dj-table-turn.svg",
+      "sha256": "c3262ea4db0e3f356dda05f8280f68e779629ee9550f280901550d0b059cb1a5",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/guitarist.svg",
+      "sha256": "2adb970dafa7125fe0afd5f62b4cd0d7284560a0a1855ff44f425485794800e9",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/headphones.svg",
+      "sha256": "16cb57174874758626a90862905fd6258928ac5ba0ac5c2ea8fa908cf4b2a454",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/heart.svg",
+      "sha256": "de893bb2e8235fb7f7a8283b792ad0c502148ac20ba9c7fe648686a6c07ec853",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/comment.svg",
+      "sha256": "fee123fe5565fb16560af180653f341b31657f6361596d3da63a7fa1a4ec50f5",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-small-dumbbell.svg",
+      "sha256": "5465e0cf6959f5e45cc7ff69b7cb02134a249290a77b811c4dbaa374b821412e",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery-40.svg",
+      "sha256": "37633fa59568d9d262ed896c8a5f2bba33c711edd04f296fe52b2ae84201291d",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-player.svg",
+      "sha256": "ed14aab25d9f87a152d0f362859e20550096bae4091d02cefcc54766d4bcffdc",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/disk.svg",
+      "sha256": "866969b94ced5f609335c7278c4e51f7d3f9da2b7dc092a75ebf8f6d4a75cdf2",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-faculty.svg",
+      "sha256": "16b4b02ae59ccb921a698232d8da5c81ce90960bf9c8ff669b4dc795b67b4f61",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/rocker-user.svg",
+      "sha256": "cb4f0ecb92fdabe5645e10da168cb9a096f81ba769b91d09ff771839e4246c2a",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/broadcast.svg",
+      "sha256": "4044b5c8df01c96d0e5182924a73d075ee9c72b50c604440baf2e445a9a43584",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/crown.svg",
+      "sha256": "b8e71c9ce9e72486dd67bafe6d8ac3351f339630c3236f76e07bf4fec3c1e53b",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/status-health.svg",
+      "sha256": "0f9894834f2913e614931bb6d7884faa10130e309e268989ef0ced968d27a5ca",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/music-play.svg",
+      "sha256": "003c590717a56e37546f9841089878fc140c05f310692f54911083c962feb521",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/cart.svg",
+      "sha256": "0b64e2157051db847ec2e1afae80db5ff6946beadf54a8b7adea5f1e8d78f6f2",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/jazz-jazz.svg",
+      "sha256": "0fd2f9049dbbcf2079ca3754373470f4a4d24863b5808a72b569616369091cf6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/broken-heart.svg",
+      "sha256": "b9e064360ef2391e0aad4e20879552d1dfb6cc38441c5d3b35c4a7309307a112",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-shoe.svg",
+      "sha256": "64f54711a666722f7983d729b159f4251764d5132254d3a3b0e63c00dfc4773d",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/broadcasting.svg",
+      "sha256": "6134511560ff7815070436f5e0b791a0936f2817e49bbe503cb8055ad808ae4c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/go-to-work.svg",
+      "sha256": "55a343eb626d2a5436c8faeca08a1d5469c43e6764ae5a59e03ce4123f90008e",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/collection.svg",
+      "sha256": "0be445c74dd67f691263c6f0f4583f62165302bd572fd2ec86b7c2c5a5ac4478",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/education-books-book-study-learning-library.svg",
+      "sha256": "c4e0efeea924ea19fea4080fdfa0835d1337c9e3e4adc1fcc78c8def4dee64a6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/sport-jacket.svg",
+      "sha256": "c870ac2720794a3ea936571c8dd598a5e11173c4606bbe7c8f2e5a208be8a7c6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery-20.svg",
+      "sha256": "86aac1a45d9b24cd7784a227620d7c6bbc5fa67345308067db9b3266a71effd7",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/battery-100.svg",
+      "sha256": "21c2636de732bd6dcc4e33c94611d8d8533f789d142f0b033fed2d024db4f370",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/link.svg",
+      "sha256": "bffa91929dee4bb671bdcb423d309cab793d80b5e2f79677e660d041d241a99c",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/ban.svg",
+      "sha256": "bd140cfad38cc9bca0fa24197201865389251f44353809689d72e1334c41e911",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/playlist-icons/clock.svg",
+      "sha256": "f7c41973c670098f015e893d2aafbd20b90c0d339ee049eafb196a85e8f48990",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/player-icons/lyrics-microphone.svg",
+      "sha256": "a4e4bb5db3e772b49fef4054378344adc609724a230868e873165a9eeb2fc23e",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/player-icons/pointer-crossed.svg",
+      "sha256": "4389117c82317b24bf653bb1fb5f95892b964aaf3538fd42536b33eec55bb139",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/player-icons/select.svg",
+      "sha256": "8e13fafcef354ea8c4898781f86ba8fcbadf13875eb0cef1455ce05a081e3704",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/player-icons/pointer.svg",
+      "sha256": "bedf11d48073191f11a875de4b4303c875c3b6ae0d00a52288a4eff269b3dbd6",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/ui/link.svg",
+      "sha256": "8dce198de3b128e467cc72ba484689e44f558f595906e573da39daca734b1b23",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/author/mushep.png",
+      "sha256": "94221de48019d91e9789a6aaf87d4dccadfebbf64b6b77d0b824f19417b327c7",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/credits/youtube.svg",
+      "sha256": "2913d0a8712125b732039fc78f2b4880d54450fa0fa867587c0f30b3c574b9fa",
+      "provenance": "Font Awesome Free Brands 6.7.2"
+    },
+    {
+      "path": "app/assets/credits/telegram.svg",
+      "sha256": "8d9af838ea7ac6d3c824b4685aee3b0e6a33e727e82042f114bd83d92e165f33",
+      "provenance": "Font Awesome Free Brands 6.7.2"
+    },
+    {
+      "path": "app/assets/credits/tiktok.svg",
+      "sha256": "05695218afc4e8ac8366e0b0cfe404807a5b8ecb68f9d455fd58682602c6ada0",
+      "provenance": "Font Awesome Free Brands 6.7.2"
+    },
+    {
+      "path": "app/assets/credits/twitch.svg",
+      "sha256": "11367a1865413a9cb81d180601eda74a2577539b0ec0f1d0594948c476e70ead",
+      "provenance": "Font Awesome Free Brands 6.7.2"
+    },
+    {
+      "path": "app/assets/credits/github.svg",
+      "sha256": "26e0eeaa44c42b667cea33d9a3985b67a64f75982c05abfe796b4bf73fa90a37",
+      "provenance": "Font Awesome Free Brands 6.7.2"
+    },
+    {
+      "path": "app/shared/app-icon.js",
+      "sha256": "0385f48e6984568d767be35df3eee727fd10a0b5b166435760f9b5817f2cd660",
+      "provenance": "MusheP supplied/provenance declaration 2026-09-23"
+    },
+    {
+      "path": "app/assets/ui/user-off.svg",
+      "sha256": "32804f63eaf87cce5c82a8875a006846cc2be11b7d042605cd5fd9d18ab2c34c",
+      "provenance": "MusheP supplied 2026-09-24; preserved byte-for-byte. SVG Repo provenance follows author declaration; exact asset page not supplied."
+    },
+    {
+      "path": "app/assets/player-icons/cover-selected.svg",
+      "sha256": "215abb91b5f85d0f38e36ef5f4544adcfa6214e58d748eeeb7dfaa22afbb224a",
+      "provenance": "User supplied select.svg, 2026-09-26; copied unchanged. Exact source page and individual license not supplied."
+    }
+  ]
+}

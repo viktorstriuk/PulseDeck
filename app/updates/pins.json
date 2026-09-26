@@ -1,0 +1,28 @@
+{
+  "ffmpeg": {
+    "id": "ffmpeg",
+    "version": "9.0.2",
+    "format": "zip",
+    "license": "GPL-3.0-or-later (Gyan build)",
+    "sourceURL": "https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2",
+    "file": {
+      "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip",
+      "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+      "size": 0,
+      "maxSize": 536870912
+    }
+  },
+  "ytdlp": {
+    "id": "ytdlp",
+    "version": "2026.08.19",
+    "format": "exe",
+    "license": "GPL-3.0-or-later (Windows PyInstaller binary)",
+    "sourceURL": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19",
+    "file": {
+      "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe",
+      "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+      "size": 0,
+      "maxSize": 67108864
+    }
+  }
+}
