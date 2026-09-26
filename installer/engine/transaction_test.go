@@ -331,8 +331,11 @@ func TestPayloadEmbeddedFilesAllPassManifest(t *testing.T) {
 	var a map[string]interface{}
 	b, _ := zipBytes(p.Files["app/updates/config.json"], 4096)
 	json.Unmarshal(b, &a)
-	if a["repository"] != nil || a["publicKey"] != "" {
-		t.Fatal("placeholder source or private trust material shipped")
+	repository, ok := a["repository"].(map[string]interface{})
+	publicKey, _ := a["publicKey"].(string)
+	if !ok || repository["owner"] != "viktorstriuk" || repository["name"] != "PulseDeck" ||
+		!strings.Contains(publicKey, "-----BEGIN PUBLIC KEY-----") || strings.Contains(publicKey, "PRIVATE KEY") {
+		t.Fatal("official update source/public trust key missing or private trust material shipped")
 	}
 }
 func TestPayloadDigestRejectsModifiedRecordBeforeWriting(t *testing.T) {
