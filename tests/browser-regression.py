@@ -232,9 +232,17 @@ def test_overlay(browser):
     check('Смена иконки немедленно обновляет обложку оверлея',p.locator('#cover').get_attribute('src').endswith('indigo-monitor.png'))
     check('В сквозном режиме угловые зоны растягивания выключены',not p.locator('[data-resize="sw"]').is_visible())
     p.locator('#clickThroughToggle').click();pause(p)
-    r=p.locator('[data-resize="sw"]').bounding_box();assert r
-    p.mouse.move(r['x']+3,r['y']+r['height']-3);p.mouse.down();p.mouse.move(20,130,steps=4);p.mouse.up();pause(p)
-    check('После выключения сквозных кликов растягивание доступно',p.evaluate("__overlay.calls.some(c=>c.name==='resizeBegin')&&__overlay.calls.some(c=>c.name==='resizeEnd')"))
+    handle=p.locator('[data-resize="sw"]');r=handle.bounding_box();assert r
+    point=p.evaluate("""([x,y,w,h])=>{
+      const handle=document.querySelector('[data-resize="sw"]');
+      for(let yy=y+h-3;yy>=y+3;yy-=2) for(let xx=x+3;xx<=x+w-3;xx+=2){
+        if(document.elementFromPoint(xx,yy)?.closest('[data-resize="sw"]')===handle) return [xx,yy];
+      }
+      return null;
+    }""",[r['x'],r['y'],r['width'],r['height']])
+    check('После выключения сквозных кликов зона растягивания принимает указатель',point,point)
+    p.mouse.move(point[0],point[1]);p.mouse.down();p.mouse.move(20,130,steps=4);p.mouse.up();pause(p)
+    check('После выключения сквозных кликов растягивание доступно',p.evaluate("__overlay.calls.some(c=>c.name==='resizeBegin')&&__overlay.calls.some(c=>c.name==='resizeMove')&&__overlay.calls.some(c=>c.name==='resizeEnd')"))
     p.locator('#clickThroughToggle').click();pause(p)
     p.set_viewport_size({'width':900,'height':250});pause(p)
     check('При изменении размеров hit regions пересчитаны',p.evaluate('__overlay.regions.some(r=>r.width>650)'))
