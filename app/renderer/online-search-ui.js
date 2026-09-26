@@ -204,7 +204,7 @@
     reorder(id,to){
       const order=this.prefs.order,from=order.indexOf(id);to=Math.max(0,Math.min(order.length-1,to));if(from===to||from<0)return;
       this.displayOrder=[];this.scroll.scrollTop=0;const rects=new Map([...this.chips.children].map(n=>[n.dataset.source,n.getBoundingClientRect()]));order.splice(from,1);order.splice(to,0,id);this.save();this.renderSources();
-      if(!matchMedia('(prefers-reduced-motion: reduce)').matches)for(const node of this.chips.children){const a=rects.get(node.dataset.source),b=node.getBoundingClientRect();if(a)node.animate([{transform:`translateX(${a.left-b.left}px)`},{transform:'translateX(0)'}],{duration:170,easing:'ease-out'});}
+      if(!this.dragController&&!matchMedia('(prefers-reduced-motion: reduce)').matches)for(const node of this.chips.children){const a=rects.get(node.dataset.source),b=node.getBoundingClientRect();if(a)node.animate([{transform:`translateX(${a.left-b.left}px)`},{transform:'translateX(0)'}],{duration:170,easing:'ease-out'});}
       this.render();
     }
     startDrag(e){

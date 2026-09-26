@@ -54,7 +54,7 @@ def federated(browser):
  p.locator('[data-source-drag=youtube]').focus();p.keyboard.press('Home');p.wait_for_timeout(220)
  check('Keyboard reordering changes priority and selected duplicate',source_order(p)[0]=='youtube' and p.locator('[data-result-key="youtube:fixture0000"]').get_attribute('data-provider')=='youtube')
  check('Priority changes persist without extra provider requests',p.evaluate('__mock.settings.onlineSearch.order[0]')=='youtube' and calls(p)==before)
- a=p.locator('[data-source-drag=ytmusic]').bounding_box();b=p.locator('[data-source=youtube]').bounding_box();p.mouse.move(a['x']+a['width']/2,a['y']+a['height']/2);p.mouse.down();p.mouse.move(b['x']+4,b['y']+b['height']/2,steps=8);p.mouse.up();p.wait_for_timeout(300)
+ a=p.locator('[data-source-drag=ytmusic]').bounding_box();b=p.locator('[data-source=youtube]').bounding_box();p.mouse.move(a['x']+a['width']/2,a['y']+a['height']/2);p.mouse.down();p.mouse.move(b['x']+4,b['y']+b['height']/2,steps=8);p.mouse.up();p.wait_for_function("__search.prefs.order[0]==='ytmusic'")
  check('Horizontal pointer drag restores Music-first priority',source_order(p)[0]=='ytmusic')
  p.evaluate('delete __searchMock.fail.newgrounds');p.click('.search-error-toggle');p.click('[data-source-retry=newgrounds]');settled(p)
  check('Retry affects only the failed source',p.locator('#onlineResults [data-provider=newgrounds]').count()>0 and calls(p)==before+1)

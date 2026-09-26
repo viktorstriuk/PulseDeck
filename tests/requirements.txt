@@ -1,2 +1,3 @@
 # Browser-test tooling only; not bundled in PulseDeck or downloaded by the app.
 playwright==1.57.0
+Pillow==12.3.0

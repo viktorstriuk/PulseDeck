@@ -69,7 +69,7 @@ def suite(browser):
  check('System preview follows OS dark while app is light',sw.get_attribute('data-system-scheme')=='dark' and a[0]=='#0a0b0f')
  p.locator('button[data-theme=forest]').click();p.locator('button[data-accent=gold]').click()
  check('App theme and accent do not recolour System preview',a==sw.evaluate("e=>[e.style.getPropertyValue('--sw-bg'),e.style.getPropertyValue('--sw-surface'),e.style.getPropertyValue('--sw-accent')]"))
- p.emulate_media(color_scheme='light');p.wait_for_timeout(70)
+ p.emulate_media(color_scheme='light');p.wait_for_function("()=>{const e=document.querySelector('.theme-swatch.system');return e?.dataset.systemScheme==='light'&&e.style.getPropertyValue('--sw-bg')==='#f4f5f8'}")
  check('System preview responds to a live OS change',sw.get_attribute('data-system-scheme')=='light' and sw.evaluate("e=>e.style.getPropertyValue('--sw-bg')")== '#f4f5f8')
  p.locator('.theme-grid').screenshot(path=str(OUT/'282-system-light.png'))
  p.locator('#appIconOptions').screenshot(path=str(OUT/'282-icon-grid.png'))
