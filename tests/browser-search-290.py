@@ -51,10 +51,14 @@ def federated(browser):
  check('Expanded dialog retains result DOM identity',p.evaluate('__savedResult===document.querySelector("[data-result-key=\\"youtube:fixture0000\\"]")'))
  before=calls(p);p.click('[data-source-toggle=soundcloud]');check('Disable source immediately removes its results',p.locator('#onlineResults [data-provider=soundcloud]').count()==0)
  p.click('[data-source-toggle=soundcloud]');check('Re-enable restores cached results without new search',p.locator('#onlineResults [data-provider=soundcloud]').count()>0 and calls(p)==before)
- p.locator('[data-source-drag=youtube]').focus();p.keyboard.press('Home');p.wait_for_timeout(220)
+ p.locator('[data-source-drag=youtube]').focus();p.keyboard.press('Home');p.wait_for_function("__search.prefs.order[0]==='youtube'");p.wait_for_function("[...document.querySelectorAll('.search-source')].every(n=>n.getAnimations().every(a=>a.playState!=='running'))")
  check('Keyboard reordering changes priority and selected duplicate',source_order(p)[0]=='youtube' and p.locator('[data-result-key="youtube:fixture0000"]').get_attribute('data-provider')=='youtube')
  check('Priority changes persist without extra provider requests',p.evaluate('__mock.settings.onlineSearch.order[0]')=='youtube' and calls(p)==before)
- a=p.locator('[data-source-drag=ytmusic]').bounding_box();b=p.locator('[data-source=youtube]').bounding_box();p.mouse.move(a['x']+a['width']/2,a['y']+a['height']/2);p.mouse.down();p.mouse.move(b['x']+4,b['y']+b['height']/2,steps=8);p.mouse.up();p.wait_for_function("__search.prefs.order[0]==='ytmusic'")
+ a=p.locator('[data-source-drag=ytmusic]').bounding_box();b=p.locator('[data-source=youtube]').bounding_box();p.mouse.move(a['x']+a['width']/2,a['y']+a['height']/2);p.mouse.down()
+ try:
+  # One decisive move avoids feeding interpolated coordinates back into a rail that reorders beneath the pointer.
+  p.mouse.move(b['x']+2,a['y']+a['height']/2);p.wait_for_function("__search.prefs.order[0]==='ytmusic'")
+ finally:p.mouse.up()
  check('Horizontal pointer drag restores Music-first priority',source_order(p)[0]=='ytmusic')
  p.evaluate('delete __searchMock.fail.newgrounds');p.click('.search-error-toggle');p.click('[data-source-retry=newgrounds]');settled(p)
  check('Retry affects only the failed source',p.locator('#onlineResults [data-provider=newgrounds]').count()>0 and calls(p)==before+1)
