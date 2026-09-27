@@ -12,13 +12,15 @@ import (
 )
 
 type Event struct {
-	Phase   string  `json:"phase"`
-	Percent float64 `json:"percent,omitempty"`
-	Done    int     `json:"done,omitempty"`
-	Total   int     `json:"total,omitempty"`
-	Error   string  `json:"error,omitempty"`
-	Target  string  `json:"target,omitempty"`
-	Message string  `json:"message,omitempty"`
+	Phase   string            `json:"phase"`
+	Percent float64           `json:"percent,omitempty"`
+	Done    int               `json:"done,omitempty"`
+	Total   int               `json:"total,omitempty"`
+	Error   string            `json:"error,omitempty"`
+	Target  string            `json:"target,omitempty"`
+	Message string            `json:"message,omitempty"`
+	Data    map[string]string `json:"data,omitempty"`
+	Report  string            `json:"report,omitempty"`
 }
 type Operation struct {
 	Name   string `json:"name"`

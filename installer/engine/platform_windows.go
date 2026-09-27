@@ -26,10 +26,14 @@ func replaceAtomic(src, dst string) error {
 	}
 	return nil
 }
-func enoughSpace(path string, needed uint64) bool {
+func freeSpace(path string) (uint64, bool) {
 	var free uint64
 	r, _, _ := k32.NewProc("GetDiskFreeSpaceExW").Call(uintptr(unsafe.Pointer(utf(path))), uintptr(unsafe.Pointer(&free)), 0, 0)
-	return r != 0 && free >= needed
+	return free, r != 0
+}
+func enoughSpace(path string, needed uint64) bool {
+	free, ok := freeSpace(path)
+	return ok && free >= needed
 }
 func processAlive(pid int) bool {
 	h, _, _ := k32.NewProc("OpenProcess").Call(0x100000, 0, uintptr(pid))

@@ -122,7 +122,8 @@ func componentDownload(ctx context.Context, p ComponentPin, dest string, notify 
 	if limit == 0 {
 		limit = p.File.MaxSize
 	}
-	return fetchVerified(ctx, urls, dest, p.File.SHA256, limit, func(u string) bool { return componentURLAllowed(p.ID, u) }, "components", notify)
+	err := fetchVerified(ctx, urls, dest, p.File.SHA256, limit, func(u string) bool { return componentURLAllowed(p.ID, u) }, "components", notify)
+	return annotateFailure(err, "component", p.ID)
 }
 func componentBinary(file string) bool {
 	if !noLinks(file) {

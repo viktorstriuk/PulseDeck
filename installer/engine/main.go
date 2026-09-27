@@ -50,39 +50,10 @@ func localProfile() string {
 	return filepath.Join(base, "PulseDeck")
 }
 func diagnostic(e error) {
-	file := filepath.Join(localProfile(), "logs", "setup.log")
-	os.MkdirAll(filepath.Dir(file), 0700)
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err == nil {
-		defer f.Close()
-		fmt.Fprintf(f, "%s %v\n", time.Now().UTC().Format(time.RFC3339), e)
-	}
-}
-func errorCode(e error) string {
 	if e == nil {
-		return ""
+		return
 	}
-	text := e.Error()
-	switch {
-	case strings.Contains(text, "SETUP_COMPONENTS"):
-		return "SetupErrorComponents"
-	case strings.Contains(text, "SETUP_PATH"):
-		return "SetupErrorPath"
-	case strings.Contains(text, "SETUP_LANGUAGE_SAVE"):
-		return "SetupErrorLanguageSave"
-	case strings.Contains(text, "SETUP_SETTINGS"):
-		return "SetupErrorSettings"
-	case strings.Contains(text, "SETUP_LANGUAGE"):
-		return "SetupErrorLanguage"
-	case strings.Contains(text, "SETUP_LOCKED"):
-		return "SetupErrorLocked"
-	case strings.Contains(text, "SETUP_INTEGRITY") || strings.Contains(text, "checksum"):
-		return "SetupErrorIntegrity"
-	case strings.Contains(text, "SETUP_DISK"):
-		return "SetupErrorDisk"
-	default:
-		return "SetupErrorGeneric"
-	}
+	diagnosticReport(e, "", "", "background")
 }
 func dictionary(p *Package, language string) map[string]string {
 	out := map[string]string{}
@@ -178,8 +149,13 @@ func installWithComponents(p *Package, archive, target string, notify func(Event
 	if actual != p.Manifest.Runtime.SHA256 {
 		return errors.New("SETUP_INTEGRITY")
 	}
-	if !enoughSpace(target, 1200*1024*1024) {
-		return errors.New("SETUP_DISK")
+	const installReserve uint64 = 1200 * 1024 * 1024
+	if free, ok := freeSpace(target); !ok || free < installReserve {
+		data := map[string]string{"drive": driveLabel(target), "needed": formatBytes(installReserve)}
+		if ok {
+			data["available"] = formatBytes(free)
+		}
+		return setupFail("SetupErrorDisk", errors.New("SETUP_DISK"), data)
 	}
 	if notify != nil {
 		notify(Event{Phase: "verifying"})
@@ -426,8 +402,25 @@ func main() {
 			e = install(p, arg("--runtime-archive"), arg("--target"), notify)
 		}
 		if e != nil {
-			diagnostic(e)
-			notify(Event{Phase: "error", Error: errorCode(e)})
+			target := arg("--target")
+			mode := "install"
+			if flag("--uninstall") {
+				mode = "uninstall"
+			}
+			report := diagnosticReport(e, target, p.Manifest.Version, mode)
+			code, data := errorData(e)
+			if code == "SetupErrorDisk" {
+				if data == nil {
+					data = map[string]string{}
+				}
+				if data["drive"] == "" {
+					data["drive"] = driveLabel(target)
+				}
+				if data["needed"] == "" {
+					data["needed"] = formatBytes(1200 * 1024 * 1024)
+				}
+			}
+			notify(Event{Phase: "error", Error: code, Data: data, Report: report, Target: target})
 			os.Exit(1)
 		}
 		return

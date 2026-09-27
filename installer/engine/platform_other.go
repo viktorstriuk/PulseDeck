@@ -10,9 +10,13 @@ import (
 	"time"
 )
 
-func hideProcess(c *exec.Cmd)                                               {}
-func replaceAtomic(src, dst string) error                                   { return os.Rename(src, dst) }
-func enoughSpace(path string, needed uint64) bool                           { return true }
+func hideProcess(c *exec.Cmd)              {}
+func replaceAtomic(src, dst string) error  { return os.Rename(src, dst) }
+func freeSpace(path string) (uint64, bool) { return ^uint64(0), true }
+func enoughSpace(path string, needed uint64) bool {
+	free, ok := freeSpace(path)
+	return ok && free >= needed
+}
 func processAlive(pid int) bool                                             { return pid == os.Getpid() }
 func processAt(target string) bool                                          { return false }
 func waitProcess(ctx context.Context, pid int, timeout time.Duration) error { return nil }

@@ -44,8 +44,19 @@ p{line-height:1.65}
 .feature-stack{display:flex;flex-wrap:wrap;gap:9px 18px;max-width:270px}
 .feature-stack>span{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--secondary)}
 .feature-stack .icon{width:12px;height:12px;color:#7988a6}
-.maker{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:17px;color:var(--muted);font-size:10px}
+.maker-block{margin-top:auto;padding-top:17px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.maker{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px;min-height:33px}
 .maker img{width:33px;height:33px;object-fit:contain}
+.maker-socials{display:flex;align-items:center;gap:5px;padding-left:1px}
+.maker-social{--social-icon:none;width:29px;height:27px;border:1px solid var(--line);border-radius:9px;background:var(--subtle,#ffffff05);color:var(--muted);display:grid;place-items:center;padding:0}
+.maker-social::before{content:"";width:13px;height:13px;background:currentColor;mask:var(--social-icon) center/contain no-repeat;-webkit-mask:var(--social-icon) center/contain no-repeat}
+.maker-social:hover{color:var(--text);background:var(--hover,#ffffff0b);border-color:var(--dialog-border,#a4b6e733);transform:translateY(-1px)}
+.maker-social:active{transform:translateY(0)}
+.social-github{--social-icon:url('../../app/assets/credits/github.svg')}
+.social-youtube{--social-icon:url('../../app/assets/credits/youtube.svg')}
+.social-telegram{--social-icon:url('../../app/assets/credits/telegram.svg')}
+.social-twitch{--social-icon:url('../../app/assets/credits/twitch.svg')}
+.social-tiktok{--social-icon:url('../../app/assets/credits/tiktok.svg')}
 .flow-pane{padding:32px 34px;overflow:auto;display:flex;min-width:0}
 .flow-view{width:100%;animation:view-in .28s ease-out}
 .flow-view h2{font-size:24px;letter-spacing:-.5px;line-height:1.25;margin:10px 0 11px}
@@ -93,7 +104,13 @@ p{line-height:1.65}
 .install-steps .active i{background:var(--accent);box-shadow:0 0 9px #8493ff55}
 .install-steps .done{color:var(--mint)}
 .install-steps .done i{background:var(--mint)}
+.result-hint{white-space:normal}
+.result-hint .inline-link{display:inline;padding:0;background:none;color:var(--accent);font:inherit;font-weight:650;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}
+.result-hint .inline-link:hover{color:var(--text);text-decoration-color:currentColor}
 .result-path{font-size:10px;color:var(--secondary);padding:11px 0 20px;overflow-wrap:anywhere}
+.result-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;width:100%}
+.result-actions .primary-button,.result-actions .secondary-button{width:100%;min-width:0;gap:9px;padding-inline:12px}
+.result-actions .secondary-button .icon{width:13px;height:13px}
 .flow-view>#finishClose{width:100%;margin-top:10px}
 .folder-dialog{position:absolute;max-width:620px;width:calc(100% - 100px);max-height:calc(100% - 120px);padding:24px;color:var(--text);background:#151a25;border:1px solid #a4b6e733;border-radius:22px;box-shadow:0 20px 50px #0008;overflow:auto;animation:view-in .22s ease-out}
 .folder-dialog::backdrop{background:#050812a8;backdrop-filter:blur(8px)}
@@ -206,4 +223,4 @@ to{opacity:1;transform:none}
  .places button:hover {border-color:#586ebd66}
 }
 @media(max-width:870px){.identity-pane h1{font-size:29px;line-height:1.15;letter-spacing:-.7px;margin-top:2px}.feature-stack{gap:10px 14px}.language-list{width:220px}}
-@media(max-height:650px){.identity-pane h1{font-size:27px;line-height:1.14;margin:0 0 14px}.identity-pane .intro{font-size:11px}.feature-stack{gap:8px 12px}.maker{padding-top:12px}.legal-footer{font-size:8px}}
+@media(max-height:650px){.identity-pane h1{font-size:27px;line-height:1.14;margin:0 0 14px}.identity-pane .intro{font-size:11px}.feature-stack{gap:8px 12px}.maker-block{padding-top:9px;gap:5px}.maker-social{width:27px;height:25px}.legal-footer{font-size:8px}}

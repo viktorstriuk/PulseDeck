@@ -36,15 +36,18 @@ func fetchVerified(ctx context.Context, urls []string, dest, sha string, limit i
 		return errors.New("SETUP_PATH")
 	}
 	client := &http.Client{Timeout: 30 * time.Minute, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) > 5 || !allowed(req.URL.String()) {
-			return errors.New("untrusted redirect")
+		if len(via) > 5 {
+			return setupFail("SetupErrorRedirect", errors.New("too many redirects"), nil)
+		}
+		if !allowed(req.URL.String()) {
+			return setupFail("SetupErrorSourceUntrusted", errors.New("untrusted redirect"), map[string]string{"host": safeHost(req.URL.String())})
 		}
 		return nil
 	}}
-	var last error = errors.New("runtime source missing")
+	var last error = setupFail("SetupErrorSourceMissing", errors.New("download source missing"), nil)
 	for _, address := range urls {
 		if !allowed(address) {
-			return errors.New("untrusted runtime source")
+			return setupFail("SetupErrorSourceUntrusted", errors.New("untrusted download source"), map[string]string{"host": safeHost(address)})
 		}
 		req, e := http.NewRequestWithContext(ctx, "GET", address, nil)
 		if e != nil {
@@ -53,17 +56,17 @@ func fetchVerified(ctx context.Context, urls []string, dest, sha string, limit i
 		req.Header.Set("User-Agent", "PulseDeck Setup")
 		res, e := client.Do(req)
 		if e != nil {
-			last = e
+			last = networkFailure(e)
 			continue
 		}
 		if res.StatusCode != http.StatusOK {
 			res.Body.Close()
-			last = fmt.Errorf("runtime HTTP %d", res.StatusCode)
+			last = httpFailure(res.StatusCode, address)
 			continue
 		}
 		if res.ContentLength > limit {
 			res.Body.Close()
-			return errors.New("runtime archive exceeds limit")
+			return setupFail("SetupErrorSourceTooLarge", errors.New("download exceeds safety limit"), map[string]string{"host": safeHost(address)})
 		}
 		tmp := dest + fmt.Sprintf(".part-%d", os.Getpid())
 		f, e := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -100,7 +103,7 @@ func fetchVerified(ctx context.Context, urls []string, dest, sha string, limit i
 				break
 			}
 			if err != nil {
-				e = err
+				e = networkFailure(err)
 				break
 			}
 		}
