@@ -75,5 +75,23 @@ async function fetchResponse(url,{signal,headers={},validate=u=>u,timeout=30000,
     stream.once('close',()=>{cleanup();controller.abort();});return stream;
   }catch(e){cleanup();controller.abort();throw expired?fail('UPDATE_TIMEOUT'):signal?.aborted?fail('UPDATE_CANCELLED'):e;}
 }
-function forFetch(fetchImpl){return {response:(url,o={})=>response(url,{...o,fetchImpl}),jsonBytes:(url,o={})=>jsonBytes(url,{...o,fetchImpl}),download:(file,dest,o={})=>download(file,dest,{...o,fetchImpl}),sha256,fetchFeed:(config,channel,kind,o={})=>fetchFeed(config,channel,kind,{...o,fetchImpl})};}
-module.exports={response,jsonBytes,download,sha256,fetchFeed,forFetch};
+function transportFallbackAllowed(error,signal){
+  if(signal?.aborted||error?.name==='AbortError')return false;
+  const code=String(error?.code||'');
+  // Never retry policy, integrity, HTTP-status or timeout failures through a
+  // second transport. The fallback is only for raw Chromium/network-stack
+  // failures such as a cancelled manual redirect or ERR_FAILED.
+  return !code.startsWith('UPDATE_')&&!code.startsWith('COMPONENT_');
+}
+async function chromiumThenNative(chromium,native,{signal}={}){
+  try{return await chromium();}
+  catch(error){if(!transportFallbackAllowed(error,signal))throw error;return native();}
+}
+function forFetch(fetchImpl){return {
+  response:(url,o={})=>chromiumThenNative(()=>response(url,{...o,fetchImpl}),()=>response(url,o),o),
+  jsonBytes:(url,o={})=>chromiumThenNative(()=>jsonBytes(url,{...o,fetchImpl}),()=>jsonBytes(url,o),o),
+  download:(file,dest,o={})=>chromiumThenNative(()=>download(file,dest,{...o,fetchImpl}),()=>download(file,dest,o),o),
+  sha256,
+  fetchFeed:(config,channel,kind,o={})=>chromiumThenNative(()=>fetchFeed(config,channel,kind,{...o,fetchImpl}),()=>fetchFeed(config,channel,kind,o),o)
+};}
+module.exports={response,jsonBytes,download,sha256,fetchFeed,forFetch,transportFallbackAllowed};
