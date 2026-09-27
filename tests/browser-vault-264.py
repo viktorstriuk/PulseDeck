@@ -13,7 +13,10 @@ def invoke(p,channel,*args):return p.evaluate('([c,a])=>__rpc(c,...a)',[channel,
 def secrets(p,values):
  for key,value in values.items():p.locator(f'[data-secret-field="{key}"]').fill(value)
  p.locator('#vaultPasswordSubmit').click()
-def wait_rows(p,n):p.wait_for_function('(n)=>document.querySelectorAll("#library [data-track-root]").length===n',arg=n,timeout=20000)
+def wait_rows(p,n,timeout=60000):
+ # Real scrypt work can legitimately take longer on a contended hosted runner.
+ # Wait for the unlocked render itself instead of treating a 20s CPU spike as a product failure.
+ p.wait_for_function('(n)=>!document.querySelector("#vaultUnlockForm")&&document.querySelectorAll("#library [data-track-root]").length===n',arg=n,timeout=timeout)
 def unlock(p,password):p.locator('#vaultUnlockForm input').fill(password);p.locator('#vaultUnlockForm button').click()
 def test_all(p):
  check('Vault integration: library starts with four clear songs',p.locator('#library [data-track-root]').count()==4)

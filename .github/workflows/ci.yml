@@ -44,6 +44,17 @@ jobs:
           (cd installer/engine && go test -race ./...)
       - name: Browser regression and UI screenshots
         run: python3 tools/run-browser-tests.py
+      - name: Upload browser logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-logs-${{ github.run_id }}
+          path: |
+            test-results/**/*.log
+            test-results/**/*.json
+            test-results/failure*.png
+          retention-days: 14
+          if-no-files-found: warn
       - name: Upload test evidence and untrusted CI build
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
