@@ -35,9 +35,12 @@
       return this.o.submenu('track-edit',this.t('TrackChange'),'edit',
         `<button class="context-item" data-track-edit="artist">${window.Icon('edit',15)}<span data-i18n="TrackArtist">${I.h('TrackArtist')}</span></button>`+
         `<button class="context-item" data-track-edit="title">${window.Icon('music',15)}<span data-i18n="TrackTitle">${I.h('TrackTitle')}</span></button>`+
+        (window.PulseCoverMedia.isVideo(track.coverUrl,track.coverType)?`<button class="context-item" data-track-animate role="menuitemcheckbox" aria-checked="${this.o.animationEnabled(track)}">${window.Icon('play',15)}<span data-i18n="CoverAnimate">${I.h('CoverAnimate')}</span><span class="cover-animation-mark">${window.Icon(this.o.animationEnabled(track)?'check':'close',14)}</span></button>`:'')+
         `<button class="context-item" data-track-cover aria-haspopup="dialog">${window.Icon('image',15)}<span data-i18n="CoverChange">${I.h('CoverChange')}</span><span class="context-arrow">${window.Icon('chevronRight',13)}</span></button>`);
     }
     handleMenu(event,menu){
+      const animation=event.target.closest('[data-track-animate]');
+      if(animation){event.preventDefault();event.stopPropagation();this.o.toggleAnimation(menu.dataset.trackId,animation);return true;}
       const edit=event.target.closest('[data-track-edit]'),cover=event.target.closest('[data-track-cover]'),batch=event.target.closest('[data-enrich-action]');
       if(!edit&&!cover&&!batch)return false;event.preventDefault();event.stopPropagation();
       if(batch){const snapshot=this.categorySnapshot;if(snapshot)this.openBatch(snapshot,batch.dataset.enrichAction);return true;}
@@ -256,11 +259,11 @@
       const target=e=>{const popup=e.target.closest?.('.track-cover-picker');if(popup&&this.popup?.root===popup)return popup;return artwork(e)?e.target.closest?.('[data-track-root][data-id]'):null;};
       const reset=()=>{depth=0;overlay.hidden=true;highlight?.classList.remove('cover-drop-target');highlight=null;};
       const mark=e=>{const next=target(e);if(next!==highlight){highlight?.classList.remove('cover-drop-target');highlight=next;highlight?.classList.add('cover-drop-target');}overlay.hidden=!!next;};
-      document.addEventListener('dragenter',e=>{if(!files(e))return;e.preventDefault();depth++;mark(e);},true);
-      document.addEventListener('dragover',e=>{if(!files(e))return;e.preventDefault();mark(e);if(e.dataTransfer)e.dataTransfer.dropEffect='copy';},true);
-      document.addEventListener('dragleave',e=>{if(!files(e))return;depth=Math.max(0,depth-1);if(!depth)reset();},true);
+      document.addEventListener('dragenter',e=>{if(e.target.closest?.('[data-lyrics-background-drop]')||!files(e))return;e.preventDefault();depth++;mark(e);},true);
+      document.addEventListener('dragover',e=>{if(e.target.closest?.('[data-lyrics-background-drop]')||!files(e))return;e.preventDefault();mark(e);if(e.dataTransfer)e.dataTransfer.dropEffect='copy';},true);
+      document.addEventListener('dragleave',e=>{if(e.target.closest?.('[data-lyrics-background-drop]')||!files(e))return;depth=Math.max(0,depth-1);if(!depth)reset();},true);
       document.addEventListener('drop',e=>{
-        if(!files(e))return;e.preventDefault();e.stopImmediatePropagation();reset();const dropped=Array.from(e.dataTransfer.files||[]);if(!dropped.length)return;
+        if(e.target.closest?.('[data-lyrics-background-drop]')||!files(e))return;e.preventDefault();e.stopImmediatePropagation();reset();const dropped=Array.from(e.dataTransfer.files||[]);if(!dropped.length)return;
         const popup=e.target.closest?.('.track-cover-picker'),row=e.target.closest?.('[data-track-root][data-id]');
         const media=dropped.some(f=>/^(image|video)\//.test(f.type)||window.PulseCoverTypes.typeOf(f.name,f.type));
         if(popup||row&&media){

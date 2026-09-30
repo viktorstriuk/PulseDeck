@@ -11,7 +11,7 @@ window.PulseLyricsScene=class PulseLyricsScene {
     });
     this.front=-1;this.epoch=0;this.busy=false;this.key='';this.pending=null;
     this.reduced=matchMedia('(prefers-reduced-motion: reduce)');
-    const sync=()=>{if(this.reduced.matches)this.animation?.finish();for(const [i,{image}]of this.layers.entries())if(image.tagName==='VIDEO'){if(i===this.front&&!this.reduced.matches&&!document.hidden)image.play().catch(()=>{});else image.pause();}};this.reduced.addEventListener('change',sync);document.addEventListener('visibilitychange',sync);
+    const sync=()=>{if(this.reduced.matches)this.animation?.finish();for(const [i,{image}]of this.layers.entries())if(image.tagName==='VIDEO'){if(i===this.front&&!this.reduced.matches&&!document.hidden&&image.dataset.coverEnabled!=='false')image.play().catch(()=>{});else image.pause();}};this.reduced.addEventListener('change',sync);document.addEventListener('visibilitychange',sync);
   }
   set(snapshot){
     return new Promise(resolve=>{
@@ -33,6 +33,8 @@ window.PulseLyricsScene=class PulseLyricsScene {
       slot.image.replaceWith(image);slot.image=image;
     }
     const image=slot.image;
+    image.dataset.coverTrack=request.coverTrack||'';image.dataset.coverEnabled=String(request.animate!==false);
+    if(wantsVideo)image.setAttribute('data-lyrics-scene-media','');
     layer.style.backgroundColor=request.base;layer.style.backgroundImage=request.background.startsWith('linear-gradient(')?request.background:'none';
     if(!request.background.startsWith('linear-gradient('))layer.style.backgroundColor=request.background;
     layer.style.opacity='0';layer.style.zIndex='2';scrim.style.background=request.tint;scrim.style.opacity=String(request.scrim);image.style.opacity=String(request.coverOpacity||0);
@@ -50,7 +52,7 @@ window.PulseLyricsScene=class PulseLyricsScene {
       if(epoch!==this.epoch){request.resolve(false);return;}
     }
     layer.style.opacity='1';this.animation?.cancel();this.animation=null;
-    if(wantsVideo&&!this.reduced.matches&&!document.hidden)image.play().catch(()=>{});
+    if(wantsVideo&&request.animate!==false&&!this.reduced.matches&&!document.hidden)image.play().catch(()=>{});
     if(this.front>=0){const previous=this.layers[this.front];previous.layer.style.opacity='0';previous.image.pause?.();previous.image.removeAttribute('src');}
     this.front=index;this.key=request.key;this.busy=false;this.active=null;this.host.classList.remove('ly-transitioning');request.resolve(true);this.drain();
   }

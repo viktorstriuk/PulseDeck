@@ -249,3 +249,25 @@ body.lyrics-idle .ly-line[role=button]:not(.ly-active):hover {color:var(--ly-tex
 .ly-scene>video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 @keyframes lyrics-opening{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.lyrics-trigger[aria-busy="true"]::after{animation:none;border-color:var(--accent)}}
+
+
+/* 2.9.5 — compact, source-labelled gradient choices and a lyrics-only media drop. */
+.ly-presets#lyricsGradientPresets{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:flex-start;margin:12px 0}
+#lyricsGradientPresets .ly-preset{width:36px;height:36px;min-width:36px;flex:0 0 36px;padding:0;border-radius:9px;display:grid;place-items:center;color:white}
+#lyricsGradientPresets .ly-preset:nth-child(5){margin-left:12px}
+#lyricsGradientPresets .ly-preset:disabled{opacity:.25;background:repeating-linear-gradient(135deg,transparent,transparent 4px,currentColor 5px,transparent 6px);cursor:not-allowed}
+.ly-gradient-colors#lyricsGradientColors{display:grid;grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr);gap:6px;align-items:center}
+#lyricsGradientColors[data-stop-count="3"] .ly-gradient-stop:last-child{grid-column:1 / -1}
+#lyricsGradientColors[data-stop-count="4"] .ly-gradient-stop:nth-last-child(2){grid-column:1}
+#lyricsGradientColors[data-stop-count="4"] .ly-gradient-stop:last-child{grid-column:3}
+.ly-color-switch,.ly-color-switch:hover,.ly-color-switch:active{width:40px;height:44px;padding:0;display:grid;place-items:center;border:0!important;background:none!important;box-shadow:none!important;color:inherit;cursor:pointer;border-radius:4px}
+.ly-color-switch:hover{color:var(--accent,#c9cdd6)}
+.ly-color-switch:focus-visible{outline:2px solid currentColor;outline-offset:0}
+.ly-custom-background{display:flex;align-items:center;gap:14px;margin:12px 0 20px;padding:8px 0;border-radius:12px}
+.ly-custom-background .ly-help{font-size:12px;line-height:1.5;margin:0;flex:1;min-width:0}
+.ly-custom-background button{white-space:nowrap}
+.ly-background-drop{outline:2px dashed var(--accent,#b8bfc9);outline-offset:4px}
+.ly-theme-preview{isolation:isolate;overflow:hidden}
+.ly-background-preview-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none}
+.ly-theme-preview:has(.ly-background-preview-media)::after{content:"";position:absolute;inset:0;background:var(--ly-preview-tint,#000);opacity:.38;z-index:-1;pointer-events:none}
+@media(max-width:540px){.ly-custom-background{align-items:flex-start;flex-direction:column;gap:7px}#lyricsGradientPresets .ly-preset{width:30px;height:30px;min-width:30px;flex-basis:30px}#lyricsGradientPresets{gap:6px!important}#lyricsGradientPresets .ly-preset:nth-child(5){margin-left:4px}}

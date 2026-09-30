@@ -15,6 +15,8 @@ const { pipeline } = require('stream/promises');
 const { extractMetadata, saveCover } = require('./metadata');
 const { JsonSettingsStore, isPlainObject } = require('./settings-store');
 const Library = require('./shared/library-model');
+const OverlayGeometry = require('./shared/overlay-geometry');
+const MenuOrder = require('./shared/menu-order');
 const SurfaceStyle = require('./shared/surface-style');
 const SearchModel = require('./shared/online-search');
 const {createSearchService} = require('./online/service');
@@ -34,7 +36,16 @@ function getSearchService(){
   if(!searchService)searchService=createSearchService({fetch:(url,options)=>net.fetch(url,options),extractInfo:(url,options)=>getExtractor().inspect(url,options),fallback:args=>getExtractor().fallback(args)});
   return searchService;
 }
-let trackEditor=null, coverSearch=null, libraryImporter=null, libraryEnrichment=null;
+let trackEditor=null, coverSearch=null, libraryImporter=null, libraryEnrichment=null, loudnessStore=null;
+let folderStore=null;
+function getFolders(){
+  if(!folderStore){const {FolderStore}=require('./library/folders');folderStore=new FolderStore({music:MUSIC_DIR,data:DATA_DIR,settings:getSettings,commit:next=>settingsStore.set(next),list:()=>scanLibrary(true),editor:getTrackEditor(),vault:getVault,notify:notifyLibraryChanged,busy:enabled=>{maintenanceOperations+=enabled?1:-1;}});}
+  return folderStore;
+}
+function getLoudness(){
+  if(!loudnessStore){const {LoudnessStore}=require('./library/loudness');loudnessStore=new LoudnessStore({file:path.join(DATA_DIR,'loudness-cache.json'),resolve:rel=>getTrackEditor().resolve(rel),ffmpeg:()=>getComponents().resolve('ffmpeg.exe'),playback:rel=>getVault().playback(rel),privateValid:r=>getVault().sessions.get(r.s.d.id)===r.s,onProgress:payload=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('library:loudness-progress',payload);}});}
+  return loudnessStore;
+}
 function emitLibraryProgress(payload){if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('library:progress',payload);}
 function getTrackEditor(){if(!trackEditor){const {TrackEditor}=require('./library/editor');trackEditor=new TrackEditor({music:MUSIC_DIR,covers:COVER_DIR,list:()=>scanLibrary(),vault:getVault,notify:notifyLibraryChanged});}return trackEditor;}
 function getCoverSearch(){if(!coverSearch)coverSearch=require('./online/covers').createCovers({search:getSearchService(),fetch:(url,options)=>net.fetch(url,options),version:APP_VERSION,progress:emitLibraryProgress});return coverSearch;}
@@ -57,8 +68,21 @@ async function setCoverFromFile(rel,file,revision){await getTrackEditor().resolv
 function getImporter(){if(!libraryImporter){const {Importer}=require('./library/importer');libraryImporter=new Importer({music:MUSIC_DIR,staging:path.join(DATA_DIR,'import-staging'),storeCover:storeImportedCover,publish:publishMusicFile,duration:importDuration,notify:notifyLibraryChanged,progress:emitLibraryProgress});}return libraryImporter;}
 function getEnrichment(){if(!libraryEnrichment){const {Enrichment}=require('./library/enrichment');libraryEnrichment=new Enrichment({editor:getTrackEditor(),lyrics:getLyrics,vault:getVault,covers:getCoverSearch(),importer:getImporter(),sanitize:normalizeCover,duration:importDuration,preferences:()=>getSettings().onlineSearch,notify:notifyLibraryChanged,progress:emitLibraryProgress});}return libraryEnrichment;}
 async function libraryCommand(c={}){
+  if(['folder-save','folder-delete','folder-move'].includes(c.type))return getVault().exclusive(()=>getFolders().command(c));
+  if(c.type==='loudness')return getTrackEditor().withSnapshot(()=>getLoudness().analyze(c.rels,c.requestId));
+  if(c.type==='loudness-cancel'){loudnessStore?.cancel();return {ok:true};}
   if(!c||typeof c!=='object'||Array.isArray(c))throw I18n.error('TrackBadEdit');
   switch(c.type){
+    case 'cover-animation':{
+      if(typeof c.enabled!=='boolean')throw I18n.error('TrackBadEdit');
+      return getVault().exclusive(async()=>{
+        const r=await getTrackEditor().resolve(c.rel);
+        if(!require('./shared/cover-media').isVideo(r.track.coverUrl,r.track.coverType))throw I18n.error('TrackBadEdit');
+        if(r.entry){const previous=r.entry.meta.animateCover;r.entry.meta.animateCover=c.enabled;try{await getVault().saveManifest(r.s);}catch(error){r.entry.meta.animateCover=previous;throw error;}}
+        else saveSettings({coverAnimation:{...getSettings().coverAnimation,[Library.token(c.rel)]:c.enabled}});
+        return {ok:true,enabled:c.enabled};
+      });
+    }
     case 'metadata':return getTrackEditor().info(c.rel);
     case 'edit':return getTrackEditor().update(c.rel,c.patch,{revision:c.revision});
     case 'cover-search':{if(c.consent!==true)throw I18n.error('EnrichConsent');const {track}=await getTrackEditor().resolve(c.rel);return getCoverSearch().find({...c,track,prefs:getSettings().onlineSearch});}
@@ -230,6 +254,51 @@ function getUpdates() {
   // Component checking has its own schedule and IPC; no application feed is required.
   updateManager.on('changed',snapshot=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('updates:changed',snapshot);});
   return updateManager;
+}
+
+let presetStore=null;
+function getPresets(){
+  if(presetStore)return presetStore;
+  const {PresetStore}=require('./settings/presets');
+  presetStore=new PresetStore({directory:SETTINGS_DIR,read:getSettings,
+    beforeRead:()=>saveOverlayBoundsNow(),
+    readExternal:()=>({...getUpdates().prefs,discoveryEnabled:getDiscovery().status().enabled}),
+    write:patch=>saveSettings(patch,{skipEffects:true,skipOverlayApply:true}),
+    writeExternal:async patch=>{
+      const updateKeys=['automatic','prerelease','components','intervalMinutes','intervalUnit'];
+      if(updateKeys.some(k=>Object.hasOwn(patch,k)))getUpdates().configure(Object.fromEntries(updateKeys.filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]])));
+      if(typeof patch.discoveryEnabled==='boolean')getDiscovery().configure(patch.discoveryEnabled);
+    },
+    validate:async p=>{
+      if(folderStore?.active)throw I18n.error('FolderBusy');
+      if(p.sections.includes('updates')&&(getUpdates().controller||getUpdates().installing||getUpdates().pending))throw I18n.error('PresetsUpdateBusy');
+      for(const key of ['appIcon','customBackground']){
+        const ref=p.settings[key];if(typeof ref!=='string'||!ref||ref.startsWith('builtin:'))continue;
+        const file=appearanceRefToPath(ref);if(!file||!fs.existsSync(file))throw I18n.error('PresetsAssetMissing');
+      }
+    },
+    effects:async(patch,next)=>{
+      const warnings=[];if('theme' in patch)syncNativeTheme(next.theme);
+      if('appIcon' in patch)await applyWindowIcon(next);
+      if('hotkeys' in patch){registerGlobalShortcuts(next);if(Object.values(hotkeyStatus).some(x=>!x.ok&&!x.disabled))warnings.push(I18n.t('PresetsHotkeyConflict'));}
+      if('playerOverlay' in patch){
+        if(overlayWindow&&!overlayWindow.isDestroyed()){
+          overlayProgrammaticBounds++;
+          try{overlayWindow.setBounds(overlayBoundsFromConfig(next.playerOverlay));}finally{overlayProgrammaticBounds--;}
+          saveOverlayBoundsNow();
+        }
+        await applyOverlayConfiguration(next.playerOverlay);
+      }
+      if('gameOverlay' in patch)await applyGameOverlayConfiguration(next.gameOverlay);
+      return warnings;
+    }
+  });return presetStore;
+}
+async function presetCommand(c={}){
+  const store=getPresets();if(c.type==='list')return store.list();
+  if(c.type==='save')return store.save(c);if(c.type==='rename')return store.rename(c);
+  if(c.type==='delete')return store.remove(c.id);if(c.type==='apply')return store.apply(c.id);
+  throw I18n.error('PresetsInvalid');
 }
 
 const defaultSettings = {
@@ -416,8 +485,8 @@ function normalizeSettings(saved = {}) {
   overlay.visualizerHeight = Math.max(4, Math.min(120, finiteNumber(overlay.visualizerHeight, defaultSettings.playerOverlay.visualizerHeight)));
   overlay.sensitivity = Math.max(0.25, Math.min(3, finiteNumber(overlay.sensitivity, defaultSettings.playerOverlay.sensitivity)));
   overlay.smoothing = Math.max(0, Math.min(95, finiteNumber(overlay.smoothing, defaultSettings.playerOverlay.smoothing)));
-  overlay.width = Math.max(180, Math.min(2400, finiteNumber(overlay.width, defaultSettings.playerOverlay.width)));
-  overlay.height = Math.max(38, Math.min(1200, finiteNumber(overlay.height, defaultSettings.playerOverlay.height)));
+  overlay.width = Math.max(180, Math.min(16384, finiteNumber(overlay.width, defaultSettings.playerOverlay.width)));
+  overlay.height = Math.max(38, Math.min(16384, finiteNumber(overlay.height, defaultSettings.playerOverlay.height)));
   for (const c of ['visualizerColor','visualizerColor2','background']) overlay[c] = sanitizeHex(overlay[c], defaultSettings.playerOverlay[c]);
   for (const b of ['notifyAutoNext','showCover','showTitle','showArtist','showProgress','showElapsed','showRemaining','showLabel','showControls','showPlaylist','showClickThroughToggle','visualizer','backgroundVisible','borderVisible','clickThroughWhenMinimized','fullscreenTopmost','visualizerMirror','visualizerFill']) overlay[b] = !!overlay[b];
   overlay.backgroundBlur = Math.max(0, Math.min(32, finiteNumber(overlay.backgroundBlur, defaultSettings.playerOverlay.backgroundBlur)));
@@ -440,6 +509,9 @@ function normalizeSettings(saved = {}) {
       height: Math.max(38, finiteNumber(b.height, overlay.height)),
     };
   } else overlay.bounds = null;
+  next.menuOrders=MenuOrder.normalize(next.menuOrders);
+  next.coverAnimation=Object.fromEntries(Object.entries(isPlainObject(next.coverAnimation)?next.coverAnimation:{}).filter(([k,v])=>k.length<4000&&typeof v==='boolean'&&!k.startsWith('vault:')));
+  next.lyricsLastGradient=Array.isArray(next.lyricsLastGradient)?next.lyricsLastGradient.filter(c=>/^#[0-9a-f]{6}$/i.test(c)).slice(0,4):[];
   return Library.normalizeOrganization(next);
 }
 
@@ -458,7 +530,7 @@ function getSettings() {
 
 function mergeSettingsPatch(current, patch) {
   const allowed = new Set([
-    'language', 'theme', 'accent', 'customAccent', 'view', 'sort', 'volume', 'favorites', 'lastTrack',
+    'onlineSearch', 'menuOrders', 'coverAnimation', 'lyricsLastGradient', 'language', 'theme', 'accent', 'customAccent', 'view', 'sort', 'volume', 'favorites', 'lastTrack',
     'categoryLayout', 'categoryOrder', 'categoryStyles', 'customCategories',
     'artistAliases', 'artistNames', 'artistAliasHistory', 'playlistMembership', 'trackOrders', 'trackOrderSchema',
     'backgroundMode', 'customBackground', 'backgroundHistory', 'backgroundOpacity', 'appIcon',
@@ -502,6 +574,7 @@ function mergeSettingsPatch(current, patch) {
 }
 
 function saveSettings(patch, options = {}) {
+  if(folderStore?.active&&Object.keys(patch||{}).some(k=>['favorites','customCategories','categoryOrder','categoryStyles','artistAliases','artistNames','artistAliasHistory','playlistMembership','trackOrders','lastTrack','coverAnimation'].includes(k)))throw I18n.error('FolderBusy');
   const old = getSettings();
   const next = settingsStore.set(mergeSettingsPatch(old, patch));
   if (next.language !== I18n.language) {
@@ -520,6 +593,7 @@ function saveSettings(patch, options = {}) {
 
 function flushSettings(snapshot = null) {
   if (snapshot && isPlainObject(snapshot)) saveSettings(snapshot, { skipEffects:true, skipOverlayApply:true });
+  saveOverlayBoundsNow();
   return settingsStore.flush();
 }
 
@@ -529,6 +603,7 @@ function commitOrganization(next) {
 }
 
 async function organizeLibrary(command = {}) {
+  if(folderStore?.active)throw I18n.error('FolderBusy');
   const tracks = await scanLibrary();
   const settings = getSettings();
   let result;
@@ -573,7 +648,7 @@ async function walk(dir) {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) { if (!fs.existsSync(path.join(full,'.pulsedeck-vault'))) out.push(...await walk(full)); }
-    else if (entry.isFile() && !pendingLibraryWrites.has(Library.token(full)) && MEDIA_EXTS.has(path.extname(entry.name).toLowerCase())) out.push(full);
+    else if (entry.isFile() && !getFolders().hidden(normalizeRel(full)) && !pendingLibraryWrites.has(Library.token(full)) && MEDIA_EXTS.has(path.extname(entry.name).toLowerCase())) out.push(full);
   }
   return out;
 }
@@ -583,6 +658,7 @@ function normalizeRel(fullPath) {
 }
 
 async function scanLibrary(force = false) {
+  if(folderStore?.active&&folderStore.snapshotTracks)return folderStore.snapshotTracks;
   if (currentScanPromise) {
     if (!force) return currentScanPromise;
     forceNextScan = true;
@@ -631,6 +707,7 @@ async function scanLibrary(force = false) {
           duration: Number(meta.duration) || 0,
           coverUrl: meta.coverPath ? pathToFileURL(meta.coverPath).href : '',
           coverType: require('./shared/cover-media').typeOf(meta.coverPath,meta.coverType),
+          animateCover:settings.coverAnimation?.[Library.token(rel)]!==false,
           audioUrl: pathToFileURL(filePath).href,
           sourceUrl: meta.sourceUrl || '',
           sourceProvider: (() => {
@@ -647,6 +724,8 @@ async function scanLibrary(force = false) {
           favorite: favoriteSet.has(rel.toLowerCase()),
           addedAt:Number(meta._pulseAddedAt) > 0 ? Number(meta._pulseAddedAt) : (stat.birthtimeMs > 0 ? stat.birthtimeMs : stat.ctimeMs),
           modifiedAt: stat.mtimeMs,
+          changedAt: stat.ctimeMs,
+          loudnessIntro: getLoudness().peek({rel,size:stat.size,modifiedAt:stat.mtimeMs,changedAt:stat.ctimeMs}),
           size: stat.size,
           ext: path.extname(filePath).slice(1).toUpperCase(),
         });
@@ -668,6 +747,7 @@ async function scanLibrary(force = false) {
 
 function notifyLibraryChanged() {
   discoveryLibrary=null;
+  if(folderStore?.active){forceNextScan=true;return;}
   forceNextScan = true;
   clearTimeout(watchTimer);
   watchTimer = setTimeout(() => {
@@ -1439,17 +1519,22 @@ async function saveIconRaster(ref, dataUrl) {
 async function updateDesktopShortcutIcon(iconPath) {
   if (process.platform !== 'win32') return;
   try {
-    const shortcut = path.join(app.getPath('desktop'), `${APP_NAME}.lnk`);
-    if (!fs.existsSync(shortcut)) return;
-    const current = shell.readShortcutLink(shortcut);
-    try { fs.unlinkSync(shortcut); } catch {}
-    shell.writeShortcutLink(shortcut, 'create', { ...current, icon: iconPath, iconIndex: 0 });
-  } catch {}
+    return require('./windows/shortcuts').repair({shell,execPath:process.execPath,iconPath,
+      desktop:app.getPath('desktop'),appData:app.getPath('appData'),appId:APP_ID,name:APP_NAME,
+      createStartMenu:!process.defaultApp&&path.basename(process.execPath).toLowerCase()==='pulsedeck.exe'});
+  } catch { return []; }
 }
 
 async function applyWindowIcon(settings = getSettings()) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const iconPath = selectedIconPath(settings);
+  if(process.platform==='win32'){
+    // A renamed Electron executable retains Electron's PE icon. Give Explorer
+    // the explicit relaunch identity before the user pins the running window.
+    const quote=value=>'"'+String(value).replaceAll('"','')+'"';
+    const relaunchCommand=quote(process.execPath)+(process.defaultApp?' '+quote(__dirname):'');
+    mainWindow.setAppDetails({appId:APP_ID,appIconPath:iconPath,appIconIndex:0,relaunchCommand,relaunchDisplayName:APP_NAME});
+  }
   try {
     const image = nativeImage.createFromPath(iconPath);
     if (!image.isEmpty()) mainWindow.setIcon(image);
@@ -1661,22 +1746,12 @@ function setOverlayBoundsSafe(win, bounds) {
 }
 
 function overlayBoundsFromConfig(config) {
-  const primary = screen.getPrimaryDisplay().workArea;
-  const saved = config?.bounds;
-  const width = Math.max(180, Math.min(primary.width, Number(saved?.width || config?.width) || 430));
-  const height = Math.max(38, Math.min(primary.height, Number(saved?.height || config?.height) || 122));
-  let x = Number(saved?.x), y = Number(saved?.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    x = primary.x + primary.width - width - 24;
-    y = primary.y + primary.height - height - 24;
-  }
-  x = Math.max(primary.x, Math.min(primary.x + primary.width - width, x));
-  y = Math.max(primary.y, Math.min(primary.y + primary.height - height, y));
-  return { x:Math.round(x), y:Math.round(y), width:Math.round(width), height:Math.round(height) };
+  return OverlayGeometry.restore(config, screen.getAllDisplays(), screen.getPrimaryDisplay());
 }
 
 
 function destroyOverlayWindow() {
+  saveOverlayBoundsNow();
   clearTimeout(overlayHideTimer); clearInterval(overlayHitTimer);
   overlayHideTimer = null; overlayHitTimer = null;
   overlayPreviewMode = false; overlayPreviewRequested = false; overlayPreviewOverride = null;
@@ -1795,7 +1870,7 @@ function saveOverlayBoundsNow() {
   const b = overlayWindow.getBounds();
   overlayLastSavedBounds = { ...b };
   const settings = getSettings();
-  saveSettings({ playerOverlay:{ ...settings.playerOverlay, width:b.width, height:b.height, bounds:b } }, { skipOverlayApply:true });
+  saveSettings({ playerOverlay:{ ...settings.playerOverlay, width:b.width, height:b.height, bounds:b, displayId:screen.getDisplayMatching(b).id } }, { skipOverlayApply:true });
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('overlay:bounds', b);
 }
 
@@ -1824,7 +1899,8 @@ function updateOverlayResize(payload = {}) {
   if (edge.includes('s')) height = Math.max(minH, bounds.height + dy);
   if (edge.includes('w')) { width = Math.max(minW, bounds.width - dx); x = bounds.x + (bounds.width - width); }
   if (edge.includes('n')) { height = Math.max(minH, bounds.height - dy); y = bounds.y + (bounds.height - height); }
-  const display = screen.getDisplayMatching(bounds).workArea;
+  const monitor = screen.getDisplayMatching(bounds);
+  const display = monitor.bounds || monitor.workArea;
   width = Math.min(width, display.width); height = Math.min(height, display.height);
   x = Math.max(display.x, Math.min(display.x + display.width - width, x));
   y = Math.max(display.y, Math.min(display.y + display.height - height, y));
@@ -1873,22 +1949,24 @@ function createOverlayWindow() {
     clearTimeout(boundsTimer);
     boundsTimer = setTimeout(() => {
       if (!overlayWindow || overlayWindow.isDestroyed()) return;
-      if (overlayProgrammaticBounds > 0 || overlayResizeSession) return;
+      if (overlayProgrammaticBounds > 0 || overlayResizeSession) { boundsTimer=setTimeout(saveBounds,350); return; }
       if (!overlayPreviewMode && getSettings().playerOverlay.mode !== 'persistent') return;
       const b = overlayWindow.getBounds();
       if (sameOverlayBounds(b, overlayLastSavedBounds, 0)) return;
       overlayLastSavedBounds = { ...b };
       const settings = getSettings();
-      saveSettings({ playerOverlay:{ ...settings.playerOverlay, width:b.width, height:b.height, bounds:b } }, { skipOverlayApply:true });
+      saveSettings({ playerOverlay:{ ...settings.playerOverlay, width:b.width, height:b.height, bounds:b, displayId:screen.getDisplayMatching(b).id } }, { skipOverlayApply:true });
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('overlay:bounds', b);
     }, 180);
   };
   overlayWindow.on('will-resize', event => { if (currentOverlayPolicy().clickThrough) event.preventDefault(); });
   overlayWindow.on('will-move', event => { if (currentOverlayPolicy().clickThrough) event.preventDefault(); });
   overlayWindow.on('move', saveBounds); overlayWindow.on('resize', saveBounds);
+  overlayWindow.on('close',saveOverlayBoundsNow);
+  overlayWindow.on('hide',saveOverlayBoundsNow);
   overlayWindow.on('show', () => updateOverlayInteractivity());
   overlayWindow.on('hide', () => { overlayGestureUntil = 0; overlayResizeSession = null; overlayPointerInteractive = false; updateOverlayInteractivity(); });
-  overlayWindow.on('closed', () => { overlayGestureUntil = 0; clearInterval(overlayHitTimer); overlayHitTimer = null; overlayHitRegions = []; overlayInteractionSignature = ''; overlayPreviewSignature = null; overlayWindow = null; bindGameOverlayWindows(); overlayPreviewMode = false; overlayLastSavedBounds = null; overlayResizeSession = null; overlayPointerInteractive = false; overlayProgrammaticBounds = 0; clearTimeout(overlayHideTimer); });
+  overlayWindow.on('closed', () => { clearTimeout(boundsTimer); overlayGestureUntil = 0; clearInterval(overlayHitTimer); overlayHitTimer = null; overlayHitRegions = []; overlayInteractionSignature = ''; overlayPreviewSignature = null; overlayWindow = null; bindGameOverlayWindows(); overlayPreviewMode = false; overlayLastSavedBounds = null; overlayResizeSession = null; overlayPointerInteractive = false; overlayProgrammaticBounds = 0; clearTimeout(overlayHideTimer); });
   return overlayWindow;
 }
 
@@ -1991,7 +2069,7 @@ function getLyrics(){
   if(!lyricsStore)lyricsStore=new LyricsStore({music:MUSIC_DIR,data:DATA_DIR,listPublic:()=>scanLibrary(),getVault,
     fetchJson:require('./lyrics/http').createLyricsHTTP((url,options)=>net.fetch(url,options),APP_VERSION),
     embedded:async track=>{const file=resolveMusicRelative(track.rel);return (await extractMetadata(file,COVER_DIR,await fsp.stat(file))).embeddedLyrics||'';},
-    ffmpeg:()=>getComponents().resolve('ffmpeg.exe'),analysisProgress:payload=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:analysis-progress',payload);},
+    inspectBackground:inspectCoverFile,ffmpeg:()=>getComponents().resolve('ffmpeg.exe'),analysisProgress:payload=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:analysis-progress',payload);},
     dialog,parent:()=>mainWindow,progress:payload=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:progress',payload);}});
   return lyricsStore;
 }
@@ -2000,8 +2078,9 @@ function getVault(){
   vaultStore=new VaultStore({music:MUSIC_DIR,settings:getSettings,commit:next=>settingsStore.set(next),
     listPublic:()=>scanLibrary(true),port:startPreviewServer,trash:file=>shell.trashItem(file),notify:notifyLibraryChanged,
     lyricsBridge:{capture:(track,entry)=>getLyrics().sealForVault(track,entry),exportPublic:entry=>getLyrics().exportPublicLyrics(entry)},
-    onLock:()=>{lyricsStore?.lockPrivate();if(libraryEnrichment?.active?.private)libraryEnrichment.cancel();if(libraryEnrichment)libraryEnrichment.lastJob=null;libraryEnrichment?.invalidate();coverSearch?.dispose();if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:locked');},
+    onLock:()=>{loudnessStore?.cancel(true);lyricsStore?.lockPrivate();if(libraryEnrichment?.active?.private)libraryEnrichment.cancel();if(libraryEnrichment)libraryEnrichment.lastJob=null;libraryEnrichment?.invalidate();coverSearch?.dispose();if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:locked');},
     purge:async(rels,covers,entry)=>{
+      getLoudness().forget(rels);
       if(entry?.lyricsMigrated)await getLyrics().retirePublic(rels,entry);
       if(currentScanPromise)await currentScanPromise;
       let next=getSettings();for(const rel of rels){next=Library.removeTrack(next,rel);if(Library.token(next.lastTrack)===Library.token(rel))next.lastTrack='';}
@@ -2055,7 +2134,7 @@ async function vaultCommand(c={}){
     if(c.action==='hide')result=Library.bulkCategories(getSettings(),tracks,keys,'hide');
     else if(c.action==='delete'){
       result=Library.bulkCategories(getSettings(),tracks,keys,'delete');
-      const privateDeletable=protectedKeys.filter(k=>!Library.SYSTEM_KEYS.has(k));if(privateDeletable.length)await v.deletePlaylists(privateDeletable,c.passwords||{});
+      const privateDeletable=protectedKeys.filter(k=>!Library.SYSTEM_KEYS.has(Library.Folders.split(k).base));if(privateDeletable.length)await v.deletePlaylists(privateDeletable,c.passwords||{});
       result.settings.protectedPlaylists=getSettings().protectedPlaylists;
     }else if(c.action==='merge'||c.action==='alias'){
       if(keys.length<2||!cats.some(cat=>cat.key===c.target)||(c.action==='merge'&&!keys.includes(c.target)))throw I18n.error("AppSelectAnExistingDestination");
@@ -2081,7 +2160,7 @@ async function vaultCommand(c={}){
           // Alias metadata is already public as playlist names; no song tags are written.
           const r=Library.aliasArtist(before,live,key,c.target);settingsStore.set(r.settings);
         }else if(!srcPrivate&&!dstPrivate)settingsStore.set(Library.mergePlaylists(before,live,key,c.target).settings);
-        else settingsStore.set(Library.bulkCategories(before,live,[key],Library.SYSTEM_KEYS.has(key)?'hide':'delete').settings);
+        else settingsStore.set(Library.bulkCategories(before,live,[key],Library.SYSTEM_KEYS.has(Library.Folders.split(key).base)?'hide':'delete').settings);
         if(srcPrivate){v.index.vaults[key].deleted=true;await v.persist();}
       }
       const resultSettings=getSettings(),targetCustom=resultSettings.customCategories.find(x=>x.id===c.target);if(targetCustom)targetCustom.hidden=false;else resultSettings.categoryStyles[c.target]={...(resultSettings.categoryStyles[c.target]||{}),hidden:false};settingsStore.set(resultSettings);
@@ -2139,9 +2218,14 @@ function registerIpc() {
     if(getVault().hidden(trackRel)||trackRel.split(/[\\/]/).some(part=>part.startsWith('.'))||getSettings().protectedPlaylists&&Object.values(getSettings().protectedPlaylists).some(d=>trackRel.replaceAll('\\','/').startsWith(d.folder+'/')))throw I18n.error("AppThisFileIsNotAvailableInThePublic");
     return trackRel ? { rel:trackRel, audioUrl:pathToFileURL(resolveMusicRelative(trackRel)).href } : null;
   });
+  handleLocalized('lyrics:background-drop',(event,file,rel,revision)=>{
+    if(event.sender!==mainWindow?.webContents)throw I18n.error('InvalidSender');
+    return getVault().exclusive(()=>getLyrics().setBackground({rel,revision,file}));
+  });
   handleLocalized('lyrics:command', (event,command={}) => {
     if(event.sender!==mainWindow?.webContents)throw I18n.error("InvalidSender");
     const c=command&&typeof command==='object'?command:{},service=getLyrics();
+    if(c.type==='background-pick')return getVault().exclusive(()=>service.pickBackground(c));
     if(c.type==='get')return getVault().exclusive(()=>service.get(c.rel));
     if(c.type==='save')return getVault().exclusive(()=>service.save(c)).then(result=>{libraryEnrichment?.invalidate(c.rel);return result;});
     if(c.type==='presentation')return getVault().exclusive(()=>service.presentation(c));
@@ -2193,6 +2277,7 @@ function registerIpc() {
     }
     return appearanceRefToUrl(raw);
   });
+  handleLocalized('presets:command',(event,c)=>{if(event.sender!==mainWindow?.webContents)throw I18n.error('InvalidSender');return getVault().exclusive(()=>presetCommand(c));});
   handleLocalized('settings:get', () => getSettings());
   handleLocalized('settings:set', (_e, patch) => saveSettings(patch));
   ipcMain.on('settings:flush', (event, snapshot) => {
@@ -2300,6 +2385,7 @@ if (!gotSingleInstanceLock) {
     registerIpc();
     await getUpdates().onStartup({failed:process.argv.includes('--update-failed')});
     if(getUpdates().state.phase==='installing')return;
+    try{await getFolders().recover();await getPresets().recover();}catch(error){dialog.showErrorBox(I18n.t('FoldersTitle'),I18n.errorMessage(error));}
     I18n.watch(broadcastLanguage);
     createWindow();
     if(process.platform==='win32')scheduleComponentCheck();
@@ -2317,6 +2403,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  loudnessStore?.cancel(true);
   I18n.close();
   clearTimeout(componentCheckTimer);updateManager?.close();componentManager?.cancel();searchService?.dispose();libraryEnrichment?.dispose();coverSearch?.dispose();libraryImporter?.dispose();
   try { flushSettings(); } catch (error) { console.error(I18n.t('FinalSettingsFlushFailed'), error); }

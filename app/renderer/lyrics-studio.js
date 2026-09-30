@@ -48,7 +48,7 @@ const I18n = window.PulseI18n;
         const path=e.composedPath(),target=e.target;
         if(!settings.open)return;
         if(e.type==='click'&&!path.some(n=>n?.tagName==='BUTTON'))return;
-        if(path.some(n=>['lyricsSettingsSave','lyricsSettingsClose'].includes(n?.id)))return;
+        if(path.some(n=>['lyricsSettingsSave','lyricsSettingsClose','lyricsBackgroundChoose'].includes(n?.id)))return;
         if(['lyricsPrimaryColor','lyricsAddColor'].includes(target.id)||path.some(n=>n?.id==='lyricsGradientColors'||n?.classList?.contains('ly-preset')))this.theme.paletteSource='manual';
         if(path.some(n=>n?.id==='lyricsResetTheme'))this.theme.paletteSource='cover';
         this.queuePresentation();

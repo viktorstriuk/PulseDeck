@@ -197,6 +197,7 @@ const I18n = window.PulseI18n;
     stateBaseCurrent=Number(state.currentTime)||0; stateReceivedAt=performance.now();
     I18n.setText(title,()=>state.title||I18n.t('AppName')); I18n.setText(artist,()=>(state.artist||I18n.t("AppTagline"))); playlist.textContent=state.playlist||'';
     const src=String(state.cover||'');
+    for(const v of card.querySelectorAll('video[data-cover-media]')){v.dataset.coverEnabled=String(state.animateCover!==false);window.PulseCoverMedia.sync(v);}
     if(src && src!==String(card.dataset.paletteSource||'')){card.dataset.paletteSource=src;extractCoverPalette(window.PulseCoverMedia.isVideo(src,state.coverType)?'':src);} else if(!src){card.dataset.paletteSource='';extractCoverPalette('');}
     applyCover();
     scheduleHitRegions();

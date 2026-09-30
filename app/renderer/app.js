@@ -20,6 +20,7 @@ const I18n = window.PulseI18n;
   const selectedSurface=()=>Surface.current(state.settings,surfaceTarget);
   const updateSurface=patch=>Object.assign(state.settings,Surface.update(state.settings,surfaceTarget,patch));
   const orderHistory = new Library.OrderHistory(100);
+  let menuReorder=null,presetsUI=null;
   let trackReorder = null, trackSelection = null, lyricsView = null, searchUI = null, trackTools = null;
   let bulkBusy = false;
   let playlistSelection=null, playlistReorders=[], vaultEpoch=0, vaultPromptResolve=null;
@@ -31,7 +32,7 @@ const I18n = window.PulseI18n;
   const onlinePreviewAudio = $('#onlinePreviewAudio');
   const trimPreviewAudio = $('#trimPreviewAudio');
 
-  const sortLabels = () => ({ manual:I18n.t("UICustomOrder"), recent:I18n.t("UINewestFirst"), old:I18n.t("UIOldestFirst"), title:I18n.t("UITitleAZ"), titleDesc:I18n.t("UITitleZA"), artist:I18n.t("UIByArtist"), album:I18n.t("UIByAlbum"), durationAsc:I18n.t("UIShortestFirst"), durationDesc:I18n.t("UILongestFirst"), source:I18n.t("UIBySource"), sizeDesc:I18n.t("UIByFileSize") });
+  const sortLabels = () => ({ manual:I18n.t("UICustomOrder"), recent:I18n.t("UINewestFirst"), old:I18n.t("UIOldestFirst"), title:I18n.t("UITitleAZ"), titleDesc:I18n.t("UITitleZA"), artist:I18n.t("UIByArtist"), album:I18n.t("UIByAlbum"), durationAsc:I18n.t("UIShortestFirst"), durationDesc:I18n.t("UILongestFirst"), source:I18n.t("UIBySource"), sizeDesc:I18n.t("UIByFileSize"), loudnessAsc:I18n.t("LoudnessAscending"), loudnessDesc:I18n.t("LoudnessDescending") });
   const accentValues = {
     purple: '#b038ae', blue: '#4665c2', mint: '#27ab7b', olive: '#5c6929', clay: '#bd6e44', teal: '#2b97a1', rose: '#d4608a', gold: '#c79a31', crimson: '#b93e56',
   };
@@ -325,7 +326,7 @@ const I18n = window.PulseI18n;
   }
 
   function categoryByKey(key) {
-    return categoryData(true).find((c) => c.key === key) || null;
+    return Library.categories(state.tracks,state.settings,true).find((c) => c.key === key) || null;
   }
 
   function categoryCssVars(cat) {
@@ -576,7 +577,78 @@ const I18n = window.PulseI18n;
   }
 
   function categoryData(includeHidden = false) {
-    return Library.categories(state.tracks, state.settings, includeHidden);
+    return Library.categories(state.tracks, state.settings, includeHidden).filter(c=>(c.folderId||'')===(state.folderId||''));
+  }
+
+  function libraryFolderLabel(id){return state.settings.libraryFolders?.find(f=>f.id===id)?.name||I18n.t('FolderShared');}
+  function folderRailMarkup(side=false){
+    const folders=state.settings.libraryFolders||[];
+    const add=state.categoryEditMode?`<button class="category-add library-folder-add" data-add-folder title="${I18n.h('FolderCreate')}" aria-label="${I18n.h('FolderCreate')}">${window.Icon('plus',16)}</button>`:'';
+    if(!folders.length)return add;
+    if(state.folderOverview){
+      return add+[{id:'',name:I18n.t('FolderShared'),icon:'folder',color:'#7890b9'},...folders].map(folder=>{
+        const count=state.tracks.filter(t=>Library.Folders.ofTrack(t,state.settings)===folder.id).length;
+        return `<button class="library-folder-tab ${folder.glow?'has-glow':''}" data-folder-open="${esc(folder.id)}" style="${categoryCssVars(folder)}" title="${esc(folder.name)}"><span class="folder-tab-icon">${categoryIconMarkup(folder.icon||'folder',19)}</span><span class="folder-tab-name">${esc(folder.name)}</span><small>${count}</small></button>`;
+      }).join('');
+    }
+    const folder=folders.find(f=>f.id===state.folderId)||{name:I18n.t('FolderShared'),icon:'folder',color:'#7890b9'};
+    return add+`<button class="library-folder-crumb" data-folder-back data-folder-id="${esc(state.folderId||'')}" style="${categoryCssVars(folder)}" aria-label="${I18n.h('FolderBack',{name:folder.name})}" title="${I18n.h('FolderBack',{name:folder.name})}">${categoryIconMarkup(folder.icon||'folder',19)}</button>`;
+  }
+  async function enterLibraryFolder(id,origin=null){
+    if(id&&!state.settings.libraryFolders?.some(f=>f.id===id))return;
+    const old=origin?.getBoundingClientRect();state.folderId=id;state.folderOverview=false;state.categorySignature='';trackSelection?.clear();playlistSelection?.clear();
+    await navigateCategory(Library.Folders.scoped(id,'all'),{force:true});
+    const crumb=$('#categoryChips [data-folder-back]');if(crumb&&old&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const r=crumb.getBoundingClientRect();crumb.animate([{transform:`translateX(${old.left-r.left}px)`},{transform:'none'}],{duration:240,easing:'cubic-bezier(.2,.8,.2,1)'});}
+  }
+  function openFolderEditor(folder=null){
+    openCategoryEditor(folder?{...folder,key:folder.id,label:folder.name,kind:'folder',canRename:true}:null,true);
+    state.categoryDraftFolder=folder?.id||'new';state.categoryDraft.icon=folder?.icon||'folder';state.categoryDraft.name=folder?.name||I18n.t('FolderNew');
+    $('#categoryProtectedToggle').checked=false;$('#categoryProtectedToggle').closest('.vault-editor-security').classList.add('hidden');
+    I18n.setText($('#categoryStyleTitle'),()=>folder?I18n.t('FolderEdit'):I18n.t('FolderCreate'));renderCategoryEditor();
+  }
+  async function saveFolderEditor(){
+    const button=$('#categoryStyleSave');if(button.disabled)return;button.disabled=true;
+    try{const style={...state.categoryDraft,name:$('#categoryNameInput').value.trim()};const result=await api.library.command({type:'folder-save',id:state.categoryDraftFolder==='new'?'':state.categoryDraftFolder,style});
+      Object.assign(state.settings,result.settings);state.categoryDraftFolder=null;closeModal('categoryStyleModal');state.categorySignature='';
+      await enterLibraryFolder(result.folder.id);state.categoryEditMode=true;renderCategories(true);
+    }catch(e){toast('bad',I18n.t('FoldersTitle'),I18n.errorMessage(e));}finally{button.disabled=false;}
+  }
+  function openFolderContext(id,x,y){
+    const folder=state.settings.libraryFolders?.find(f=>f.id===id);if(id&&!folder)return;
+    const menu=$('#contextMenu');hideContextMenu();menu.dataset.menuKind='folder';menu.dataset.folderId=id;
+    const sources=Library.categories(state.tracks,state.settings,true).filter(c=>!c.protected&&Library.Folders.ofCategory(c.key,state.settings)!==id);
+    menu.innerHTML=`<div class="context-selection-title">${esc(folder?.name||I18n.t('FolderShared'))}</div>
+      <button class="context-item" data-folder-command="open">${window.Icon('folder',15)}<span>${I18n.h('FolderOpen')}</span></button>
+      ${folder?`<button class="context-item" data-folder-command="edit">${window.Icon('palette',15)}<span>${I18n.h('FolderEdit')}</span></button>`:''}
+      ${playlistSubmenu('folder-import',I18n.t('FolderMoveFrom'),'folder',sources.map(c=>`<button class="context-item" data-folder-source="${esc(c.key)}">${categoryIconMarkup(c.icon,15)}<span>${esc(libraryFolderLabel(c.folderId||'')+' / '+c.label)}</span></button>`).join(''))}
+      ${folder?`<div class="context-sep"></div><button class="context-item danger" data-folder-command="delete">${window.Icon('trash',15)}<span>${I18n.h('FolderDeleteEmpty')}</span></button>`:''}
+      <div class="folder-context-note">${I18n.h('FolderPrivacyNote')}</div>`;
+    menuReorder?.prepare();menu.classList.remove('hidden');requestAnimationFrame(()=>{const r=menu.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(innerWidth-r.width-8,x))+'px';menu.style.top=Math.max(58,Math.min(innerHeight-r.height-8,y))+'px';armTrackSubmenu(menu);});
+  }
+  function askFolderMove(sourceKey,targetFolder,movePlaylist){
+    const category=categoryByKey(sourceKey);if(!category)return;
+    const moving=state.tracks.filter(Library.membershipPredicate(state.settings,sourceKey));
+    openConfirmation({title:I18n.t('FolderMoveTitle',{name:libraryFolderLabel(targetFolder)}),text:I18n.t('FolderMoveConfirm',{name:category.label,count:moving.length}),actionText:I18n.t('UIMove'),icon:'folder',onConfirm:async()=>{
+      const playing=currentTrack(),affected=playing&&moving.some(t=>t.id===playing.id),at=audio.currentTime,autoplay=!audio.paused;
+      if(affected){audio.pause();audio.removeAttribute('src');audio.load();state.currentId='';}
+      try{const result=await api.library.command({type:'folder-move',sourceKey,targetFolder,movePlaylist});Object.assign(state.settings,result.settings);
+        if(result.coverAnimation)state.settings.coverAnimation=result.coverAnimation;state.settings.lastTrack=result.lastTrack??state.settings.lastTrack;
+        state.folderId=targetFolder;state.folderOverview=false;state.category=result.targetKey||Library.Folders.scoped(targetFolder,'all');state.categorySignature='';state.librarySignature='';
+        closeModal('confirmModal');await loadLibrary({quiet:true});
+        if(result.warning)toast('bad',I18n.t('FoldersTitle'),result.warning,10000);else toast('good',I18n.t('FolderMoved'),I18n.t('FolderMovedCount',{count:result.count}),3500);
+      }finally{if(affected){await loadLibrary({quiet:true});if((!state.currentId||state.currentId===playing.id)&&findTrack(playing.id)){await selectTrack(playing.id,false);const restore=()=>{if(state.currentId!==playing.id)return;try{audio.currentTime=Math.min(at,Number.isFinite(audio.duration)?audio.duration:at);}catch{}if(autoplay&&audio.paused)togglePlay();};if(audio.readyState)restore();else audio.addEventListener('loadedmetadata',restore,{once:true});}}}
+    }});
+  }
+  async function handleFolderMenu(e,menu){
+    const source=e.target.closest('[data-folder-source]'),move=e.target.closest('[data-folder-move-playlist]');
+    if(source){askFolderMove(source.dataset.folderSource,menu.dataset.folderId||'',false);return true;}
+    if(move){askFolderMove(state.categoryContextKey,move.dataset.folderMovePlaylist,true);return true;}
+    const command=e.target.closest('[data-folder-command]');if(!command)return false;
+    const id=menu.dataset.folderId||'',folder=state.settings.libraryFolders?.find(f=>f.id===id);hideContextMenu();
+    if(command.dataset.folderCommand==='open')await enterLibraryFolder(id);
+    if(command.dataset.folderCommand==='edit')openFolderEditor(folder);
+    if(command.dataset.folderCommand==='delete')openConfirmation({title:I18n.t('FolderDeleteEmpty'),text:I18n.t('FolderDeleteConfirm',{name:folder?.name||''}),actionText:I18n.t('UIDelete'),icon:'trash',onConfirm:async()=>{const result=await api.library.command({type:'folder-delete',id});Object.assign(state.settings,result.settings);if(state.folderId===id)state.folderId='';state.folderOverview=true;closeModal('confirmModal');state.categorySignature='';renderLibrary();}});
+    return true;
   }
 
   function patchPlaylistSelection() {
@@ -608,11 +680,13 @@ const I18n = window.PulseI18n;
 
   function renderCategories(force = false) {
     if (isReordering()) { deferredCategoryRender = true; return; }
+    const folders=state.settings.libraryFolders||[];if(state.folderId&&!folders.some(f=>f.id===state.folderId))state.folderId='';
+    if(state.folderOverview===undefined)state.folderOverview=folders.length>0;if(!folders.length)state.folderOverview=false;
     const allCats = categoryData(true);
     const visible = allCats.filter((c) => !c.hidden);
     const hiddenCats = allCats.filter((c) => c.hidden);
     if (!visible.some((c) => c.key === state.category)) state.category = visible[0]?.key || 'all';
-    const signature = `${state.categoryEditMode}|${state.settings.categoryLayout}|${allCats.map((c) => `${c.key}:${c.label}:${c.icon}:${c.color}:${c.hidden}:${c.protected}:${c.glow}:${c.glowIntensity}:${(c.gradient||[]).join(',')}`).join('|')}`;
+    const signature = `${state.folderId||''}|${state.folderOverview}|${JSON.stringify(folders)}|${state.tracks.map(t=>t.rel).join(';')}|${state.categoryEditMode}|${state.settings.categoryLayout}|${allCats.map((c) => `${c.key}:${c.label}:${c.icon}:${c.color}:${c.hidden}:${c.protected}:${c.glow}:${c.glowIntensity}:${(c.gradient||[]).join(',')}`).join('|')}`;
     if (!force && signature === state.categorySignature) { patchPlaylistSelection(); return; }
     state.categorySignature = signature;
     const tabMarkup = (cat, side = false) => `<button class="chip category-tab ${cat.key === state.category ? 'active' : ''} ${cat.glow ? 'has-glow' : ''}" data-category="${esc(cat.key)}" role="tab" aria-selected="${cat.key === state.category}" style="${categoryCssVars(cat)}" title="${esc(cat.label)}">
@@ -622,9 +696,10 @@ const I18n = window.PulseI18n;
     const plus = state.categoryEditMode ? `<button class="category-add" data-add-category title="${I18n.h("UINewPlaylist")}" data-i18n-title="UINewPlaylist">${window.Icon('plus',16)}</button>` : '';
     const rails = [$('#categoryChips'), $('#categorySidebar'), $('#hiddenCategories')];
     const positions = rails.map(node => [node.scrollLeft, node.scrollTop]);
-    $('#categoryChips').innerHTML = visible.map((c) => tabMarkup(c)).join('') + plus;
+    $('#categoryChips').classList.toggle('folder-overview',!!state.folderOverview);
+    $('#categoryChips').innerHTML = folderRailMarkup()+(state.folderOverview?'':visible.map((c) => tabMarkup(c)).join('') + plus);
     const sidebar = $('#categorySidebar');
-    sidebar.innerHTML = `<div class="category-side-title" data-i18n="UIPlaylists">${I18n.h("UIPlaylists")}</div>${state.categoryEditMode && hiddenCats.length ? `<div class="side-hidden-categories"><span data-i18n="UIHidden">${I18n.h("UIHidden")}</span>${hiddenCats.map((c)=>`<button draggable="true" data-restore-category="${esc(c.key)}" title="${I18n.h("UIRestore", {value1:(c.label)})}" data-i18n-title="UIRestore" data-i18n-title-args="${I18n.attrArgs({value1:(c.label)})}" style="${categoryCssVars(c)}">${categoryIconMarkup(c.icon || 'eyeOff',13)}<b>${esc(c.label)}</b></button>`).join('')}</div>` : ''}${visible.map((c) => tabMarkup(c,true)).join('')}${state.categoryEditMode ? `<button class="category-side-add" data-add-category>${window.Icon('plus',14)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>` : ''}`;
+    sidebar.innerHTML = `<div class="category-side-title" data-i18n="UIPlaylists">${I18n.h("UIPlaylists")}</div>${state.categoryEditMode && hiddenCats.length ? `<div class="side-hidden-categories"><span data-i18n="UIHidden">${I18n.h("UIHidden")}</span>${hiddenCats.map((c)=>`<button draggable="true" data-restore-category="${esc(c.key)}" title="${I18n.h("UIRestore", {value1:(c.label)})}" data-i18n-title="UIRestore" data-i18n-title-args="${I18n.attrArgs({value1:(c.label)})}" style="${categoryCssVars(c)}">${categoryIconMarkup(c.icon || 'eyeOff',13)}<b>${esc(c.label)}</b></button>`).join('')}</div>` : ''}${folderRailMarkup(true)}${state.folderOverview?'':visible.map((c) => tabMarkup(c,true)).join('')}${state.categoryEditMode&&!state.folderOverview ? `<button class="category-side-add" data-add-category>${window.Icon('plus',14)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>` : ''}`;
     sidebar.classList.toggle('hidden', state.settings.categoryLayout !== 'side');
     document.querySelector('.content')?.classList.toggle('categories-side', state.settings.categoryLayout === 'side');
     const hiddenBox = $('#hiddenCategories');
@@ -748,9 +823,10 @@ const I18n = window.PulseI18n;
   }
 
   function updateMeta() {
-    const duration = state.tracks.reduce((sum,t) => sum + (Number(t.duration) || 0), 0);
+    const tracks=(state.settings.libraryFolders?.length&&!state.folderOverview)?state.tracks.filter(t=>Library.Folders.ofTrack(t,state.settings)===(state.folderId||'')):state.tracks;
+    const duration = tracks.reduce((sum,t) => sum + (Number(t.duration) || 0), 0);
     const suffix = duration ? ` · ${formatTotal(duration)}` : '';
-    I18n.setText($('#libraryMeta'),()=>(`${state.tracks.length} ${decl(state.tracks.length, I18n.t("AppTrack"), I18n.t("UITracks"), I18n.t("UITracks2"))}${suffix}`));
+    I18n.setText($('#libraryMeta'),()=>(`${tracks.length} ${decl(tracks.length, I18n.t("AppTrack"), I18n.t("UITracks"), I18n.t("UITracks2"))}${suffix}`));
   }
 
   function coverFallbackMarkup(cls = 'cover-fallback') {
@@ -759,7 +835,7 @@ const I18n = window.PulseI18n;
 
   function coverMarkup(track, cls = 'card-cover') {
     const cover = safeUrl(track.coverUrl);
-    return `<div class="cover ${cls} ${cover ? '' : 'placeholder'}">${coverFallbackMarkup()}${cover ? window.PulseCoverMedia.markup(cover,track.coverType) : ''}</div>`;
+    return `<div class="cover ${cls} ${cover ? '' : 'placeholder'}">${coverFallbackMarkup()}${cover ? window.PulseCoverMedia.markup(cover,track.coverType,'cover-img',track.rel,animationEnabled(track)) : ''}</div>`;
   }
 
   function renderGrid() {
@@ -828,6 +904,11 @@ const I18n = window.PulseI18n;
     state.librarySignature = signature;
     if (empty) { lib.replaceChildren(); syncTrackSelection(); return; }
     if (!state.filtered.length) {
+      if(state.settings.libraryFolders?.length&&!state.folderOverview&&!state.query.trim()&&!state.tracks.some(t=>Library.Folders.ofTrack(t,state.settings)===(state.folderId||''))){
+        lib.innerHTML=`<div class="no-results"><div class="no-results-icon">${window.Icon('folder',26)}</div><strong>${I18n.h('FolderEmpty',{name:libraryFolderLabel(state.folderId)})}</strong><span>${I18n.h('FolderEmptyHelp')}</span><button class="button secondary" data-folder-return>${window.Icon('folder',16)}<span>${I18n.h('FolderAll')}</span></button></div>`;
+        lib.querySelector('[data-folder-return]').addEventListener('click',()=>{state.folderOverview=true;state.categorySignature='';renderLibrary();});
+        return;
+      }
       const query = state.query.trim();
       lib.innerHTML = `<div class="no-results"><div class="no-results-icon">${window.Icon('search',26)}</div><strong data-i18n="UINoResults">${I18n.h("UINoResults")}</strong><span>${query ? I18n.h("UIIsNotInYourLocalLibrary", {value1:(query)}) : I18n.h("UITryAnotherPlaylist")}</span>${query ? `<div class="online-fallback"><button class="button secondary" data-search-online="all">${window.Icon('search',15)}<span data-i18n="SearchFindOptions">${I18n.h("SearchFindOptions")}</span></button></div>` : ''}</div>`;
       return;
@@ -836,10 +917,31 @@ const I18n = window.PulseI18n;
     syncTrackSelection();
   }
 
+  let loudnessEpoch=0,loudnessSignature='',loudnessRequest='';
+  async function ensureLoudness(){
+    const active=['loudnessAsc','loudnessDesc'].includes(state.settings.sort);
+    if(!active){if(loudnessRequest){loudnessEpoch++;loudnessRequest='';api.library.command?.({type:'loudness-cancel'}).catch(()=>{});}$('#loudnessStatus')?.remove();loudnessSignature='';return;}
+    if(state.loading||!api.library.command)return;
+    const tracks=(isProtected()?state.privateTracks:state.tracks).filter(Library.membershipPredicate(state.settings,state.category));
+    const signature=JSON.stringify([state.category,tracks.map(t=>[t.rel,t.size,t.modifiedAt,t.changedAt])]);
+    if(signature===loudnessSignature)return;loudnessSignature=signature;
+    const missing=tracks.filter(t=>typeof t.loudnessIntro!=='number'||!Number.isFinite(t.loudnessIntro));if(!missing.length){if(loudnessRequest){loudnessEpoch++;loudnessRequest='';api.library.command({type:'loudness-cancel'}).catch(()=>{});}$('#loudnessStatus')?.remove();return;}
+    const epoch=++loudnessEpoch;const requestId='loudness-'+epoch;loudnessRequest=requestId;
+    let status=$('#loudnessStatus');if(!status){status=document.createElement('span');status.id='loudnessStatus';status.className='loudness-status';status.setAttribute('role','status');$('#sortTrigger').parentElement.append(status);}
+    I18n.setText(status,()=>I18n.t('LoudnessAnalyzing',{done:0,total:missing.length}));
+    try{const result=await api.library.command({type:'loudness',rels:missing.map(t=>t.rel),requestId});if(epoch!==loudnessEpoch||result.cancelled)return;
+      const byRel=new Map((result.results||[]).map(r=>[r.rel,r]));for(const t of allKnownTracks()){const r=byRel.get(t.rel);if(r)t.loudnessIntro=r.value;}
+      state.librarySignature='';renderLibraryBody();
+      const failed=(result.results||[]).filter(r=>r.value===null);I18n.setText(status,()=>failed.length?I18n.t('LoudnessIncomplete',{count:failed.length}):I18n.t('LoudnessReady'));
+      if(failed.length)status.title=failed[0].error||'';
+    }catch(error){if(epoch===loudnessEpoch){I18n.setText(status,()=>I18n.errorMessage(error));status.classList.add('failed');}}
+    finally{if(epoch===loudnessEpoch)loudnessRequest='';}
+  }
   function renderLibrary({ categories = true } = {}) {
     updateSortControl();
     if (categories) renderCategories();
     renderLibraryBody();
+    ensureLoudness();
   }
 
   function patchTrackVisuals(ids = null) {
@@ -905,6 +1007,22 @@ const I18n = window.PulseI18n;
   }
 
   function findTrack(id) { return allKnownTracks().find((t) => t.id === id); }
+  function animationEnabled(track){return track?.animateCover!==false && state.settings.coverAnimation?.[Library.token(track?.rel)]!==false;}
+  async function toggleAnimation(id,button){
+    const track=findTrack(id);if(!track||button.getAttribute('aria-busy')==='true')return;
+    const enabled=!animationEnabled(track);button.setAttribute('aria-busy','true');
+    try{
+      const result=await api.library.command({type:'cover-animation',rel:track.rel,enabled});
+      if(!result.ok)return;
+      track.animateCover=enabled;
+      if(!track.vaultKey){state.settings.coverAnimation||={};state.settings.coverAnimation[Library.token(track.rel)]=enabled;}
+      window.PulseCoverMedia.preference(track.rel,enabled);
+      button.setAttribute('aria-checked',String(enabled));button.querySelector('.cover-animation-mark').innerHTML=window.Icon(enabled?'check':'close',14);
+      // Neither menu, track cards nor the player cover is replaced here.
+      syncOverlayState(true);
+    }catch(error){toast('bad',I18n.t('CoverAnimate'),I18n.errorMessage(error));}
+    finally{button.removeAttribute('aria-busy');}
+  }
   function currentTrack() { return findTrack(state.currentId); }
 
   async function selectTrack(id, autoplay = true, toggleIfCurrent = false) {
@@ -999,10 +1117,10 @@ const I18n = window.PulseI18n;
   function updatePlayerCover(track) {
     const pc = $('#playerCover');
     const url = track?.coverUrl ? safeUrl(track.coverUrl) : '';
-    if (pc.dataset.coverUrl === url && pc.querySelector('.app-cover-fallback')) return;
+    if (pc.dataset.coverUrl === url && pc.querySelector('.app-cover-fallback')) {const v=pc.querySelector('video');if(v){v.dataset.coverTrack=track?.rel||'';v.dataset.coverEnabled=String(animationEnabled(track));window.PulseCoverMedia.sync(v);}return;}
     pc.dataset.coverUrl = url;
     pc.classList.toggle('placeholder', !url);
-    pc.innerHTML = `${coverFallbackMarkup()}${url ? window.PulseCoverMedia.markup(url,track.coverType) : ''}`;
+    pc.innerHTML = `${coverFallbackMarkup()}${url ? window.PulseCoverMedia.markup(url,track.coverType,'cover-img',track.rel,animationEnabled(track)) : ''}`;
   }
 
   function updatePlayerUI() {
@@ -1036,14 +1154,15 @@ const I18n = window.PulseI18n;
   }
 
   async function toggleFavorite(track) {
-    if(track?.vaultKey||isProtected('favorite')){try{if(track?.favorite)await removeChosenTracks([track],'favorite');else await addChosenTracks([track],'favorite');}catch(e){toast('bad',I18n.t("UICouldNotUpdateFavourites"),I18n.errorMessage(e)||String(e));}return;}
     if (!track) return;
+    const favoriteKey=Library.Folders.scoped(Library.Folders.ofTrack(track,state.settings),'favorite');
+    if(track.vaultKey||isProtected(favoriteKey)){try{if(track.favorite)await removeChosenTracks([track],favoriteKey);else await addChosenTracks([track],favoriteKey);}catch(e){toast('bad',I18n.t("UICouldNotUpdateFavourites"),I18n.errorMessage(e)||String(e));}return;}
     try {
       const result = await api.library.favorite(track.rel);
       track.favorite = !!result.favorite;
       if (result.favorites) state.settings.favorites = result.favorites;
       patchFavorite(track);
-      if (state.category === 'favorite' && !track.favorite) renderLibraryBody();
+      if (Library.Folders.split(state.category).base === 'favorite' && !track.favorite) renderLibraryBody();
       updatePlayerUI();
       toast('info', result.favorite ? I18n.t("UIAddedToFavourites") : I18n.t("UIRemovedFromFavourites"), track.title, 1800);
     } catch (e) { toast('bad',I18n.t("UICouldNotUpdateFavourites"),I18n.errorMessage(e)||String(e)); }
@@ -1093,7 +1212,7 @@ const I18n = window.PulseI18n;
     if (epoch !== state.backgroundRenderEpoch) return;
     const video=mode==='track'&&window.PulseCoverMedia.isVideo(url,currentTrack()?.coverType);
     let backdrop=$('#libraryVideoBackground');
-    if(video&&url){if(!backdrop||backdrop.getAttribute('src')!==url){backdrop?.remove();backdrop=window.PulseCoverMedia.element(url,currentTrack()?.coverType,'library-video-background');backdrop.id='libraryVideoBackground';$('.content').prepend(backdrop);}}
+    if(video&&url){if(!backdrop||backdrop.getAttribute('src')!==url){backdrop?.remove();backdrop=window.PulseCoverMedia.element(url,currentTrack()?.coverType,'library-video-background',currentTrack()?.rel,animationEnabled(currentTrack()));backdrop.id='libraryVideoBackground';$('.content').prepend(backdrop);}}
     else backdrop?.remove();
     root.style.setProperty('--library-bg-image', !video&&url ? `url("${url.replace(/["\\]/g, '\\$&')}")` : 'none');
     root.classList.toggle('has-library-background', !!url && mode !== 'off');
@@ -1148,7 +1267,7 @@ const I18n = window.PulseI18n;
   async function hideCategory(key) {
     if(isProtected(key)){await performPlaylistBatch([key],'hide');return;}
     categoryPatch(key, { hidden:true });
-    if (state.category === key) state.category = 'all';
+    if (state.category === key) state.category = Library.Folders.scoped(state.folderId||'','all');
     state.categoryEditMode = true;
     state.categorySignature = '';
     renderLibrary();
@@ -1163,7 +1282,7 @@ const I18n = window.PulseI18n;
     if (cat.kind === 'custom') state.settings.customCategories = (state.settings.customCategories || []).filter((c) => c.id !== key);
     else categoryPatch(key, { deleted:true });
     state.settings.categoryOrder = (state.settings.categoryOrder || []).filter((x) => x !== key);
-    if (state.category === key) state.category = 'all';
+    if (state.category === key) state.category = Library.Folders.scoped(state.folderId||'','all');
     state.categorySignature = ''; state.librarySignature = '';
     renderLibrary();
     await persistCategorySettings();
@@ -1171,7 +1290,7 @@ const I18n = window.PulseI18n;
 
   function normalizedCategoryOrder() {
     const keys = categoryData(true).map((c) => c.key);
-    return [...(state.settings.categoryOrder || []).filter((k) => keys.includes(k)), ...keys.filter((k) => !(state.settings.categoryOrder || []).includes(k))];
+    return [...(state.settings.categoryOrder || []), ...keys.filter((k) => !(state.settings.categoryOrder || []).includes(k))];
   }
 
   async function moveCategory(key, beforeKey = '') {
@@ -1263,10 +1382,12 @@ const I18n = window.PulseI18n;
       <button class="context-item" data-category-command="style">${window.Icon('palette',15)}<span data-i18n="UIChangeAppearance">${I18n.h("UIChangeAppearance")}</span></button>
       ${cat.protected&&others.some(c=>c.protected)?playlistSubmenu('access-link',I18n.h("UIMergeAccess"),'lock',others.filter(c=>c.protected).map(c=>`<button class="context-item" data-link-access="${esc(c.key)}">${categoryIconMarkup(c.icon,15)}<span>${esc(c.label)}</span></button>`).join('')):''}
       ${cat.protected?'<button class="context-item" data-category-command="restore-private">'+window.Icon('undo',15)+`<span data-i18n="UIRestoreRemovedTracks">${I18n.h("UIRestoreRemovedTracks")}</span></button>`:''}
+      ${state.settings.libraryFolders?.length?playlistSubmenu('move-folder',I18n.t('FolderMovePlaylist'),'folder',[{id:'',name:I18n.t('FolderShared')},...state.settings.libraryFolders].filter(f=>f.id!==(cat.folderId||'')).map(f=>`<button class="context-item" data-folder-move-playlist="${esc(f.id)}">${window.Icon('folder',15)}<span>${esc(f.name)}</span></button>`).join('')):''}
       ${mergeMenu}${aliasMenu}${cat.kind === 'artist' && Library.artistGroups(state.settings,state.tracks).some(g=>g.key===cat.key) ? `<button class="context-item" data-category-command="split">${window.Icon('unlink',15)}<span data-i18n="UISeparateArtists">${I18n.h("UISeparateArtists")}</span></button>` : ''}
       <div class="context-sep"></div>
       <button class="context-item danger" data-category-command="delete" ${cat.canDelete ? '' : 'disabled'}>${window.Icon('trash',15)}<span data-i18n="UIDelete">${I18n.h("UIDelete")}</span></button>
       <button class="context-item" data-category-command="hide">${window.Icon('eyeOff',15)}<span data-i18n="UIHide">${I18n.h("UIHide")}</span></button>`;
+    menuReorder?.prepare();
     menu.classList.remove('hidden');
     requestAnimationFrame(() => {
       const r = menu.getBoundingClientRect();
@@ -1315,6 +1436,7 @@ const I18n = window.PulseI18n;
   }
 
   function openCategoryEditor(cat = null, focusName = false) {
+    state.categoryDraftFolder=null;$('#categoryProtectedToggle').closest('.vault-editor-security').classList.remove('hidden');
     state.categoryDraftKey = cat?.key || '';
     state.categoryDraft = categoryDraftFrom(cat);
     $('#categoryProtectedToggle').checked=!!cat?.protected;$('#categoryPasswordInput').value='';$('#categoryPasswordConfirm').value='';renderProtectionFields();
@@ -1326,6 +1448,7 @@ const I18n = window.PulseI18n;
   }
 
   async function saveCategoryEditor() {
+    if(state.categoryDraftFolder)return saveFolderEditor();
     const d=state.categoryDraft;if(!d)return;const button=$('#categoryStyleSave');if(button.disabled)return;
     const enabled=$('#categoryProtectedToggle').checked,wasProtected=isProtected(state.categoryDraftKey);
     let password=$('#categoryPasswordInput').value;
@@ -1337,7 +1460,7 @@ const I18n = window.PulseI18n;
     button.disabled=true;I18n.setText(button,()=>(I18n.t("UISaving")));
     try{
       if(key){const cat=categoryByKey(key);if(cat?.kind==='custom')Object.assign(customCategoryByKey(key),style);else {if(cat?.canRename===false)delete style.name;categoryPatch(key,style);}}
-      else {key=`custom:${Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('')}`;state.settings.customCategories||=[];state.settings.customCategories.push({id:key,...style,hidden:false,tracks:[]});state.settings.categoryOrder.push(key);state.categoryDraftKey=key;}
+      else {key=`custom:${Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('')}`;state.settings.customCategories||=[];state.settings.customCategories.push({id:key,...style,folderId:state.folderId||'',hidden:false,tracks:[]});state.settings.categoryOrder.push(key);state.categoryDraftKey=key;}
       await persistCategorySettings();
       if(enabled&&!wasProtected){
         stopPrivatePlayback(true);const result=await runVaultCommand({type:'protect',key,name:d.name,password});
@@ -1361,7 +1484,7 @@ const I18n = window.PulseI18n;
   async function toggleTrackCategory(track, key) {
     if(!track)return;
     if(track.vaultKey||isProtected(key)){try{await addChosenTracks([track],key);}catch(e){toast('bad',I18n.t("UICouldNotAddTheSong"),I18n.errorMessage(e)||String(e));}return;}
-    if(key==='all')return;
+    if(Library.Folders.split(key).base==='all')return;
     try {
       const result = await api.library.organize({ type: 'membership', key, rel: track.rel });
       applyOrganizationSettings(result.settings);
@@ -1380,23 +1503,24 @@ const I18n = window.PulseI18n;
     menu.innerHTML = `
       <button class="context-item" data-menu="favorite">${window.Icon(track.favorite ? 'heartFill':'heart',15)}${track.favorite ? I18n.h("UIRemoveFromFavourites"):I18n.h("UIAddToFavourites2")}</button>
       ${trackTools?.trackMenu(track)||''}
+      ${Library.Folders.split(state.category).base!=='all'||isProtected()?`<button class="context-item" data-menu="remove-current">${window.Icon('minus',15)}<span data-i18n="UIRemoveFrom" data-i18n-args="${I18n.attrArgs({value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}">${I18n.h("UIRemoveFrom", {value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}</span></button>`:''}
+      <div class="context-sep"></div>
+      ${!track.vaultKey?`<button class="context-item" data-menu="reveal">${window.Icon('folder',15)}<span data-i18n="UIShowInFolder">${I18n.h("UIShowInFolder")}</span></button>`:''}
       <div class="context-submenu-wrap">
         <button class="context-item" data-menu="addTo" data-submenu-trigger="addTo" aria-haspopup="menu" aria-expanded="false">${window.Icon('folder',15)}<span data-i18n="UIAddTo">${I18n.h("UIAddTo")}</span><span class="context-arrow">${window.Icon('chevronRight',13)}</span></button>
         <div class="context-submenu">
           ${customCats.length ? customCats.map((c) => {
             const has = Library.containsTrack(state.settings, state.tracks, c.key, track);
-            return `<button class="context-item ${has?'checked':''}" data-add-category="${esc(c.key)}" ${c.key === 'all' && !isProtected(c.key) && !track.vaultKey ? `disabled title="${I18n.h("UITrackIsAlreadyInTheMainLibrary")}" data-i18n-title="UITrackIsAlreadyInTheMainLibrary"` : ''}>${categoryIconMarkup(c.icon||'music',15)}<span>${esc(c.label)}${c.hidden ? I18n.h("UIHidden4") : ''}</span>${has?window.Icon('check',13):''}</button>`;
+            return `<button class="context-item ${has?'checked':''}" data-add-category="${esc(c.key)}" ${Library.Folders.split(c.key).base === 'all' && !isProtected(c.key) && !track.vaultKey ? `disabled title="${I18n.h("UITrackIsAlreadyInTheMainLibrary")}" data-i18n-title="UITrackIsAlreadyInTheMainLibrary"` : ''}>${categoryIconMarkup(c.icon||'music',15)}<span>${esc(c.label)}${c.hidden ? I18n.h("UIHidden4") : ''}</span>${has?window.Icon('check',13):''}</button>`;
           }).join('') : `<span class="context-empty" data-i18n="UINoCustomPlaylistsYet">${I18n.h("UINoCustomPlaylistsYet")}</span>`}
           <button class="context-item new-playlist-item" data-new-category-for-track>${window.Icon('plus',15)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>
         </div>
       </div>
-      <div class="context-sep"></div>
-      ${!track.vaultKey?`<button class="context-item" data-menu="reveal">${window.Icon('folder',15)}<span data-i18n="UIShowInFolder">${I18n.h("UIShowInFolder")}</span></button>`:''}
-      ${state.category!=='all'||isProtected()?`<button class="context-item" data-menu="remove-current">${window.Icon('minus',15)}<span data-i18n="UIRemoveFrom" data-i18n-args="${I18n.attrArgs({value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}">${I18n.h("UIRemoveFrom", {value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}</span></button>`:''}
       ${source ? `<button class="context-item" data-menu="source">${window.Icon('external',15)}<span data-i18n="UIOpenSource">${I18n.h("UIOpenSource")}</span></button>` : ''}
       ${canTrimTrack(track) ? `<button class="context-item" data-menu="trim">${window.Icon('scissors',15)}<span data-i18n="UITrimTrack">${I18n.h("UITrimTrack")}</span></button>` : ''}
       <div class="context-sep"></div>
       <button class="context-item danger" data-menu="delete">${window.Icon('trash',15)}<span data-i18n="UIDeleteFile">${I18n.h("UIDeleteFile")}</span></button>`;
+    menuReorder?.prepare();
     menu.classList.remove('hidden');
     const r = anchor.getBoundingClientRect();
     requestAnimationFrame(() => {
@@ -1422,15 +1546,16 @@ const I18n = window.PulseI18n;
     menu.dataset.menuKind='tracks';menu.dataset.trackIds=JSON.stringify(tracks.map(t=>t.id));delete menu.dataset.trackId;
     menu.innerHTML=`<div class="context-selection-title" data-i18n="UISelected2" data-i18n-args="${I18n.attrArgs({value1:(tracks.length),value2:(decl(tracks.length,I18n.t("AppTrack"),I18n.t("UITracks"),I18n.t("UITracks2")))})}">${I18n.h("UISelected2", {value1:(tracks.length),value2:(decl(tracks.length,I18n.t("AppTrack"),I18n.t("UITracks"),I18n.t("UITracks2")))})}</div>
       <button class="context-item" data-bulk-action="${allFavorite?'unfavorite':'favorite'}">${window.Icon(allFavorite?'heartFill':'heart',15)}<span>${allFavorite?I18n.h("UIRemoveTheseFromFavourites"):I18n.h("UIAddTheseToFavourites")}</span></button>
-      ${state.category!=='all'||isProtected()?`<button class="context-item" data-bulk-action="remove-current">${window.Icon('minus',15)}<span data-i18n="UIRemoveFrom" data-i18n-args="${I18n.attrArgs({value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}">${I18n.h("UIRemoveFrom", {value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}</span></button>`:''}
+      ${Library.Folders.split(state.category).base!=='all'||isProtected()?`<button class="context-item" data-bulk-action="remove-current">${window.Icon('minus',15)}<span data-i18n="UIRemoveFrom" data-i18n-args="${I18n.attrArgs({value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}">${I18n.h("UIRemoveFrom", {value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}</span></button>`:''}
       ${playlistSubmenu('bulk-add',I18n.h("UIAddTheseTo"),'folder',cats.map(c=>{
         const has=!isProtected(c.key)&&!tracks.some(t=>t.vaultKey)&&tracks.every(Library.membershipPredicate(state.settings,c.key));
-        return `<button class="context-item" data-bulk-add="${esc(c.key)}" ${(c.key==='all'&&!isProtected(c.key)&&!tracks.some(t=>t.vaultKey))||has?'disabled':''}>${categoryIconMarkup(c.icon,15)}<span>${esc(c.label)}${c.hidden?I18n.h("UIHidden4"):''}</span>${has?window.Icon('check',13):''}</button>`;
+        return `<button class="context-item" data-bulk-add="${esc(c.key)}" ${(Library.Folders.split(c.key).base==='all'&&!isProtected(c.key)&&!tracks.some(t=>t.vaultKey))||has?'disabled':''}>${categoryIconMarkup(c.icon,15)}<span>${esc(c.label)}${c.hidden?I18n.h("UIHidden4"):''}</span>${has?window.Icon('check',13):''}</button>`;
       }).join('')+`<button class="context-item new-playlist-item" data-bulk-action="new-playlist">${window.Icon('plus',15)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>`)}
       <button class="context-item" data-bulk-action="sources" ${urls.length?'':'disabled'}>${window.Icon('external',15)}<span data-i18n="UIOpenSources">${I18n.h("UIOpenSources")}</span><small>${urls.length||''}</small></button>
       ${info.canAlias&&artists.length?playlistSubmenu('bulk-alias',I18n.h("UITreatTheArtistsOfTheseTracksAs"),'link',artists.map(c=>`<button class="context-item" data-bulk-alias="${esc(c.key)}">${categoryIconMarkup(c.icon,15)}<span>${esc(c.label)}</span></button>`).join('')):''}
       ${info.canSplit?`<button class="context-item" data-bulk-action="split">${window.Icon('unlink',15)}<span data-i18n="UISeparateArtists">${I18n.h("UISeparateArtists")}</span></button>`:''}
       <div class="context-sep"></div><button class="context-item danger" data-bulk-action="delete">${window.Icon('trash',15)}<span data-i18n="UIDeleteAll">${I18n.h("UIDeleteAll")}</span></button>`;
+    menuReorder?.prepare();
     menu.classList.remove('hidden');
     requestAnimationFrame(()=>{
       const r=menu.getBoundingClientRect();
@@ -1499,7 +1624,7 @@ const I18n = window.PulseI18n;
     const rels=tracks.map(t=>t.rel),add=e.target.closest('[data-bulk-add]'),alias=e.target.closest('[data-bulk-alias]');
     const action=e.target.closest('[data-bulk-action]')?.dataset.bulkAction;
     if(alias){if(tracks[0].vaultKey)askPrivateArtistAction(tracks,'alias',alias.dataset.bulkAlias);else askSelectedArtistAlias(tracks,alias.dataset.bulkAlias);return;}
-    if(action==='unfavorite'||action==='remove-current'){try{await removeChosenTracks(tracks,action==='unfavorite'?'favorite':state.category);}catch(e){toast('bad',I18n.t("UICouldNotRemoveSongs"),I18n.errorMessage(e)||String(e));}return;}
+    if(action==='unfavorite'||action==='remove-current'){try{await removeChosenTracks(tracks,action==='unfavorite'?Library.Folders.scoped(state.folderId||'','favorite'):state.category);}catch(e){toast('bad',I18n.t("UICouldNotRemoveSongs"),I18n.errorMessage(e)||String(e));}return;}
     if(action==='split'){if(tracks[0].vaultKey)askPrivateArtistAction(tracks,'split');else askArtistSplit([],rels);return;}
     if(action==='delete'){askDeleteSelected(tracks);return;}
     if(action==='new-playlist'){
@@ -1516,7 +1641,7 @@ const I18n = window.PulseI18n;
     }
     if(!add&&action!=='favorite')return;
     bulkBusy=true;
-    const key=add?add.dataset.bulkAdd:'favorite';
+    const key=add?add.dataset.bulkAdd:Library.Folders.scoped(state.folderId||'','favorite');
     hideContextMenu();
     try{
       await addChosenTracks(tracks,key);
@@ -1542,6 +1667,7 @@ const I18n = window.PulseI18n;
     hideContextMenu();$('#contextMenu').replaceChildren();state.pendingNewTracks=null;state.pendingTracksForNewCategory=null;state.pendingTrackForNewCategory='';
   }
   async function navigateCategory(key,{force=false}={}){
+    state.folderId=Library.Folders.ofCategory(key,state.settings);if(state.settings.libraryFolders?.length)state.folderOverview=false;
     if(key===state.category&&!force)return;
     const previous=state.category,oldGroup=state.settings.protectedPlaylists?.[previous]?.group,newGroup=state.settings.protectedPlaylists?.[key]?.group;
     const keep=oldGroup&&oldGroup===newGroup;
@@ -1672,7 +1798,7 @@ const I18n = window.PulseI18n;
       trackSelection?.clear();await refreshAfterVault(result);if(result.failed?.length)toast('bad',I18n.t("UISomeFilesWereNotDeleted"),I18n.t("UIRemaining2", {value1:(result.failed.length)}),6500);return;
     }
     const result=await api.library.organize({type:'bulk-remove',key,rels:tracks.map(t=>t.rel)});applyOrganizationSettings(result.settings);
-    toast('info',key==='favorite'?I18n.t("UIRemovedFromFavourites"):I18n.t("UIRemovedFromPlaylist"),I18n.t("UIFilesKept", {value1:(result.removed),value2:(decl(result.removed,I18n.t("AppTrack"),I18n.t("UITracks"),I18n.t("UITracks2")))}),2400);
+    toast('info',Library.Folders.split(key).base==='favorite'?I18n.t("UIRemovedFromFavourites"):I18n.t("UIRemovedFromPlaylist"),I18n.t("UIFilesKept", {value1:(result.removed),value2:(decl(result.removed,I18n.t("AppTrack"),I18n.t("UITracks"),I18n.t("UITracks2")))}),2400);
   }
   function startTrackDrop(d){
     const ids=trackSelection?.selected.has(d.node.dataset.id)?[...trackSelection.selected]:[d.node.dataset.id];
@@ -1752,7 +1878,7 @@ const I18n = window.PulseI18n;
     if(protectedCats.length)result=await runVaultCommand({type:'bulk-categories',keys,action,target,passwords});
     else result=await api.library.organize(action==='alias'?{type:'alias-playlists',keys,target}:{type:'bulk-categories',keys,action,target});
     if(result.settings)Object.assign(state.settings,result.settings);
-    const next=action==='merge'||action==='alias'?target:keys.includes(state.category)?'all':state.category;
+    const next=action==='merge'||action==='alias'?target:keys.includes(state.category)?Library.Folders.scoped(state.folderId||'','all'):state.category;
     await loadLibrary({quiet:true});await navigateCategory(next,{force:true});playlistSelection.set(skipped.map(c=>c.key));
     toast('good',action==='merge'?I18n.t("UIPlaylistsMerged"):action==='alias'?I18n.t("UIArtistRulesSaved"):action==='hide'?I18n.t("UIPlaylistsHidden"):I18n.t("UIPlaylistsDeleted"),I18n.t("UIProcessedOfMusicFilesWereNotDeleted", {value1:(cats.length),value2:(all.length),value3:(skipped.length?I18n.msg("UIOthersWereNotChanged"):'')}),3500);
   }
@@ -1808,7 +1934,7 @@ const I18n = window.PulseI18n;
       if(wrap.dataset.armed==='1')return;wrap.dataset.armed='1';
       let hideTimer;
       const cancelClose = () => clearTimeout(hideTimer);
-      const open = () => { cancelClose(); positionTrackSubmenu(wrap); };
+      const open = () => { cancelClose(); if(wrap.parentElement.classList.contains('menu-reordering'))return;positionTrackSubmenu(wrap); };
       const closeLater = () => {
         cancelClose();
         if (wrap.dataset.sticky === '1') return;
@@ -2282,6 +2408,7 @@ const I18n = window.PulseI18n;
     closeSortPopover();
     renderLibraryBody();
     await api.settings.set({ sort }).catch(() => {});
+    ensureLoudness();
   }
 
   async function setView(view) {
@@ -2554,8 +2681,9 @@ const I18n = window.PulseI18n;
   }
 
   function setSettingsPage(page = 'appearance') {
-    const valid = ['appearance','player','games','hotkeys','library','language','about','updates'];
+    const valid = ['presets','appearance','player','games','hotkeys','library','language','about','updates'];
     if (page === 'language') refreshLanguages().catch(()=>{});
+    if (page === 'presets')presetsUI?.load();
     state.settingsPage = valid.includes(page) ? page : 'appearance';
     $$('.settings-nav-item, #settingsAbout').forEach((b) => b.classList.toggle('active', b.dataset.settingsPage === state.settingsPage));
     $$('.settings-page').forEach((panel) => panel.classList.toggle('active', panel.dataset.settingsPanel === state.settingsPage));
@@ -2806,7 +2934,7 @@ const I18n = window.PulseI18n;
 
   function overlaySnapshot() {
     const t=currentTrack();
-    return { title:t ? Library.trackTitle(t) : I18n.t('AppName'), artist:t ? Library.trackArtist(t) : I18n.t('AppTagline'), cover:t?.coverUrl ? safeUrl(t.coverUrl) : '', coverType:t?.coverType||'', fallbackCover:state.appIconUrl, playlist:currentPlaylistName(), currentTime:Number(audio.currentTime)||0, duration:Number(audio.duration)||Number(t?.duration)||0, playing:!!t && !audio.paused };
+    return { title:t ? Library.trackTitle(t) : I18n.t('AppName'), artist:t ? Library.trackArtist(t) : I18n.t('AppTagline'), cover:t?.coverUrl ? safeUrl(t.coverUrl) : '', coverType:t?.coverType||'', animateCover:animationEnabled(t), fallbackCover:state.appIconUrl, playlist:currentPlaylistName(), currentTime:Number(audio.currentTime)||0, duration:Number(audio.duration)||Number(t?.duration)||0, playing:!!t && !audio.paused };
   }
 
   function syncGameOverlayPalette(src='') {
@@ -3064,6 +3192,10 @@ const I18n = window.PulseI18n;
     $('#gridViewBtn').addEventListener('click', () => setView('grid'));
     $('#listViewBtn').addEventListener('click', () => setView('list'));
     const categoryClick = (e) => {
+      if(e.target.closest('[data-add-folder]')){openFolderEditor();return;}
+      const folder=e.target.closest('[data-folder-open]');if(folder){enterLibraryFolder(folder.dataset.folderOpen,folder);return;}
+      if(e.target.closest('[data-folder-back]')){state.folderOverview=true;state.categorySignature='';renderCategories(true);return;}
+
       if ((state.suppressCategoryClickUntil || 0) > performance.now()) return;
       const add = e.target.closest('[data-add-category]');
       if (add) { state.categoryEditMode = true; openCategoryEditor(); return; }
@@ -3085,6 +3217,7 @@ const I18n = window.PulseI18n;
     $('#hiddenCategories').addEventListener('click', categoryClick);
 
     const categoryContext = (e) => {
+      const folder=e.target.closest('[data-folder-open],[data-folder-back]');if(folder){e.preventDefault();e.stopPropagation();openFolderContext(folder.dataset.folderOpen??folder.dataset.folderId??'',e.clientX,e.clientY);return;}
       const b = e.target.closest('[data-category]'); if (!b) return;
       e.preventDefault(); e.stopPropagation();
       if(playlistSelection?.selected.has(b.dataset.category))openPlaylistBatchMenu([...playlistSelection.selected],e.clientX,e.clientY);
@@ -3125,7 +3258,7 @@ const I18n = window.PulseI18n;
         onPress: () => { state.categoryGestureActive = true; },
         onStart: key => { state.categoryEditMode = true; state.categoryDrag = key; },
         onCommit: async visibleOrder => {
-          const rest = categoryData(true).map(c => c.key).filter(key => !visibleOrder.includes(key));
+          const rest = [...new Set([...(state.settings.categoryOrder||[]),...Library.categories(state.tracks,state.settings,true).map(c=>c.key)])].filter(key => !visibleOrder.includes(key));
           state.settings.categoryOrder = [...visibleOrder, ...rest];
           state.categorySignature = '';
           try { await persistCategorySettings(); }
@@ -3198,9 +3331,11 @@ const I18n = window.PulseI18n;
       parent?.classList.add('image-failed');
     }, true);
 
+    $('#playerCover').addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();const track=currentTrack();if(track)openContextMenu(track,{getBoundingClientRect:()=>({right:e.clientX,bottom:e.clientY})});});
     $('#contextMenu').addEventListener('click', async (e) => {
       const menu = $('#contextMenu');
       if (e.target.closest('button:disabled')) return;
+      if(e.target.closest('[data-folder-source],[data-folder-move-playlist],[data-folder-command]')){try{await handleFolderMenu(e,menu);}catch(error){toast('bad',I18n.t('FoldersTitle'),I18n.errorMessage(error));}return;}
       if(trackTools?.handleMenu(e,menu))return;
       const trigger = e.target.closest('[data-submenu-trigger]');
       if (trigger) { e.stopPropagation(); const wrap = trigger.closest('.context-submenu-wrap'); const open = !wrap.classList.contains('open') || wrap.dataset.sticky !== '1'; wrap.dataset.sticky = open ? '1' : '0'; if (open) positionTrackSubmenu(wrap); else { wrap.classList.remove('open'); trigger.setAttribute('aria-expanded','false'); } return; }
@@ -3519,6 +3654,10 @@ const I18n = window.PulseI18n;
   }
 
   async function init() {
+    api.library.onLoudness?.(data=>{const node=$('#loudnessStatus');if(node&&data.requestId===loudnessRequest)I18n.setText(node,()=>I18n.t('LoudnessAnalyzing',{done:data.finished,total:data.total}));});
+    menuReorder=new window.PulseMenuReorder({menu:$('#contextMenu'),getOrders:()=>state.settings.menuOrders||{},save:async(key,order)=>{
+      const next={...(state.settings.menuOrders||{}),[key]:order};await api.settings.set({menuOrders:next});state.settings.menuOrders=next;
+    },notify:error=>toast('bad',I18n.t('UIOrderNotSaved'),I18n.errorMessage(error))});
     applyIcons();
     renderSkeleton();
     lyricsView = new window.PulseLyricsView({api,audio,getTrack:currentTrack,notify:toast,requestPasswords,togglePlay,
@@ -3529,10 +3668,27 @@ const I18n = window.PulseI18n;
       getTracks:()=>state.tracks,onQuery:q=>{if(state.query!==q){state.query=q;renderLibraryBody();}},playLocal:id=>selectTrack(id,true),openExpanded:()=>openModal('onlineModal'),closeExpanded:preserve=>closeModal('onlineModal',preserve===true),
       save:prefs=>{state.settings.onlineSearch=structuredClone(prefs);api.settings.set({onlineSearch:state.settings.onlineSearch}).catch(error=>toast('bad',I18n.t('SearchSettingsError'),I18n.errorMessage(error)));}});
     trackTools=new window.PulseTrackTools({api,notify:toast,submenu:playlistSubmenu,arm:armTrackSubmenu,hideMenu:hideContextMenu,
-      getTrackById:findTrack,getTrack:rel=>allKnownTracks().find(t=>t.rel===rel),refresh:()=>refreshAfterVault(),
+      animationEnabled,toggleAnimation, getTrackById:findTrack,getTrack:rel=>allKnownTracks().find(t=>t.rel===rel),refresh:()=>refreshAfterVault(),
       closeSearch:()=>{if(searchUI?.mode==='expanded')closeModal('onlineModal');else searchUI?.close();}});
     new window.PulseListeningTracker({audio,getTrack:()=>state.playbackOwner==='local'?currentTrack():null,isEnabled:()=>searchUI?.discovery?.enabled===true,
       command:command=>api.discovery?.command(command)||Promise.resolve({ok:false})});
+    presetsUI=new window.PulsePresetsUI({api,notify:toast,confirm:openConfirmation,
+      prepare:async()=>{
+        clearTimeout(volumeTimer);await persistOverlaySettings(true);await overlaySaveChain;
+        await api.settings.set({volume:state.settings.volume,backgroundOpacity:state.settings.backgroundOpacity,...Surface.normalize(state.settings)});
+        await lyricsView?.flushPresentation();
+      },
+      applied:async settings=>{
+        clearTimeout(volumeTimer);clearTimeout(overlayPersistTimer);clearTimeout(gameOverlayPersistTimer);
+        state.settings=Library.normalizeOrganization(settings);state.overlayLastSaved=structuredClone(state.settings.playerOverlay);
+        state.categorySignature='';state.librarySignature='';searchUI.configure(state.settings.onlineSearch);
+        state.hotkeyStatus=await api.hotkeys.status().catch(()=>({}));
+        applyAppearance();renderHotkeys();renderOverlaySettings();renderGameOverlaySettings();renderLanguages();
+        await applyAppIconPreview();await renderBackgroundHistory();setVolume(state.settings.volume,false);
+        lyricsView.words=state.settings.lyricsDisplay?.wordMode!=='lines';lyricsView.lastGradient=state.settings.lyricsLastGradient;lyricsView.updateTools();lyricsView.render();
+        renderLibrary();updateSortControl();syncOverlayState(true);await searchUI.refreshDiscovery();
+      }
+    });
     bindEvents();
     bindTrackSelection();
     bindTrackReordering();

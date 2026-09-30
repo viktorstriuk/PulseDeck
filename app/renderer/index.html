@@ -70,6 +70,8 @@
               <button type="button" role="option" data-sort="durationDesc"><span data-i18n="UILongestFirst"></span><span data-icon="check"></span></button>
               <button type="button" role="option" data-sort="source"><span data-i18n="UIBySource"></span><span data-icon="check"></span></button>
               <button type="button" role="option" data-sort="sizeDesc"><span data-i18n="UIByFileSize"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="loudnessAsc"><span data-i18n="LoudnessAscending"></span><span data-icon="check"></span></button>
+              <button type="button" role="option" data-sort="loudnessDesc"><span data-i18n="LoudnessDescending"></span><span data-icon="check"></span></button>
             </div>
           </div>
           <div class="toolbar-toggle-group" role="group" aria-label="" data-i18n-aria-label="UILibraryView">
@@ -208,6 +210,7 @@
       <div class="settings-layout">
         <nav class="settings-nav" aria-label="" data-i18n-aria-label="UISettingsSections">
           <button class="settings-nav-item active" data-settings-page="appearance" data-i18n-title="UIAppearance" data-i18n-aria-label="UIAppearance"><span data-icon="palette"></span><span><b data-i18n="UIAppearance"></b><small data-i18n="UIThemeBackgroundAndIcon"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="presets" data-i18n-title="PresetsTitle" data-i18n-aria-label="PresetsTitle"><span data-icon="save"></span><span><b data-i18n="PresetsTitle"></b><small data-i18n="PresetsNavHint"></small></span></button>
           <button class="settings-nav-item" data-settings-page="player" data-i18n-title="UIPlayer" data-i18n-aria-label="UIPlayer"><span data-icon="music"></span><span><b data-i18n="UIPlayer"></b><small data-i18n="UIPopupAndPersistent"></small></span></button>
           <button class="settings-nav-item" data-settings-page="games" data-i18n-title="UIGameOverlay" data-i18n-aria-label="UIGameOverlay"><span data-icon="gamepad"></span><span><b data-i18n="UIGameOverlay"></b><small data-i18n="UIOverGamesAndFullScreenApps"></small></span></button>
           <button class="settings-nav-item" data-settings-page="hotkeys" data-i18n-title="UIKeyboardShortcuts2" data-i18n-aria-label="UIKeyboardShortcuts2"><span data-icon="bars"></span><span><b data-i18n="UIKeyboardShortcuts2"></b><small data-i18n="UIControlsOverGames"></small></span></button>
@@ -221,6 +224,12 @@
           </button>
         </nav>
         <div class="settings-pages">
+          <section class="settings-page presets-settings-page" data-settings-panel="presets">
+            <div class="settings-page-header"><div><h3 data-i18n="PresetsTitle"></h3><p class="setting-help" data-i18n="PresetsDescription"></p></div><button id="presetCreate" class="button primary" type="button"><span data-icon="plus"></span><span data-i18n="PresetsCreate"></span></button></div>
+            <div id="presetList" class="preset-list"></div>
+            <p id="presetStatus" class="setting-help" role="status" aria-live="polite"></p>
+            <p class="preset-scope-note setting-help" data-i18n="PresetsSafeScope"></p>
+          </section>
           <section class="settings-page active" data-settings-panel="appearance">
             <div class="settings-page-title"><h3 data-i18n="UIAppearance"></h3><p data-i18n="UIMakePulseDeckYourOwnWithoutVisualClutter"></p></div>
             <div class="setting-block theme-block">
@@ -670,6 +679,7 @@
   <script src="../shared/playlist-icons.js"></script>
   <script src="../shared/app-icon.js"></script>
   <script src="../shared/surface-style.js"></script>
+  <script src="../shared/library-folders.js"></script>
   <script src="../shared/library-model.js"></script>
   <script src="track-selection.js"></script>
   <script src="track-reorder.js"></script>
@@ -686,6 +696,7 @@
   <script src="lyrics-immersive.js"></script>
   <script src="lyrics-view.js"></script>
   <script src="lyrics-studio.js"></script>
+  <script src="lyrics-background-ui.js"></script>
   <script src="../shared/update-interval.js"></script>
   <script src="release-center.js"></script>
   <script src="../shared/online-search.js"></script>
@@ -693,6 +704,10 @@
   <script src="listening-tracker.js"></script>
   <script src="../shared/track-enrichment.js"></script>
   <script src="track-tools.js"></script>
+  <script src="../shared/menu-order.js"></script>
+  <script src="menu-reorder.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="presets-ui.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

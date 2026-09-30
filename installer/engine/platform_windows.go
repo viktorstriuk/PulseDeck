@@ -146,7 +146,7 @@ func unregisterApplication(target string) {
 	c := exec.Command("reg.exe", "DELETE", uninstallKey, "/f")
 	hideProcess(c)
 	c.Run()
-	script := fmt.Sprintf("$p='%s';if(Test-Path -LiteralPath $p){$s=(New-Object -ComObject WScript.Shell).CreateShortcut($p);if($s.TargetPath -eq '%s'){Remove-Item -LiteralPath $p}}", psQuote(filepath.Join(desktopDir(), "PulseDeck.lnk")), psQuote(filepath.Join(target, "PulseDeck.exe")))
+	script := fmt.Sprintf("foreach($p in @('%s','%s')){if(Test-Path -LiteralPath $p){$s=(New-Object -ComObject WScript.Shell).CreateShortcut($p);if($s.TargetPath -eq '%s'){Remove-Item -LiteralPath $p}}}", psQuote(filepath.Join(desktopDir(), "PulseDeck.lnk")), psQuote(filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "PulseDeck.lnk")), psQuote(filepath.Join(target, "PulseDeck.exe")))
 	c = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
 	hideProcess(c)
 	c.Run()

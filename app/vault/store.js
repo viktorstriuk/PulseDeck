@@ -97,7 +97,7 @@ class VaultStore{
       const audioToken=this.issue(s,entry,'audio'),coverToken=entry.cover?this.issue(s,entry,'cover'):'';
       const rel=`vault:${s.d.id}:${entry.id}`;
       tracks.push({...copy(entry.meta),id:`v-${s.d.id}-${entry.id}`,rel,vaultKey:key,vaultId:s.d.id,
-        publicCopy:!!exported,favorite:key==='favorite'||(!!exported&&(this.settings().favorites||[]).includes(L.token(exported.rel))),coverType:entry.coverType||'',coverUrl:coverToken?`http://127.0.0.1:${port}/vault/${coverToken}`:'',
+        publicCopy:!!exported,favorite:L.Folders.split(key).base==='favorite'||(!!exported&&(this.settings().favorites||[]).includes(L.token(exported.rel))),coverType:entry.coverType||'',coverUrl:coverToken?`http://127.0.0.1:${port}/vault/${coverToken}`:'',
         audioUrl:`http://127.0.0.1:${port}/vault/${audioToken}`});
     }
     return {locked:false,tracks,order:s.manifest.order||null,archived:s.manifest.archived?.length||0,groupSize:this.activeGroup?Object.keys(this.index.groups[this.activeGroup]?.members||{}).length:1};
@@ -109,6 +109,12 @@ class VaultStore{
     if(existing)this.tokens.delete(existing);
     const token=crypto.randomBytes(32).toString('hex');this.tokens.set(token,{s,entry,kind});this.tokenKeys.set(identity,token);return token;
   }
+  async lyricsAsset(s,entry,asset){
+    if(this.sessions.get(s.d.id)!==s||!asset?.blob||!/^private-[a-f0-9]{32}\.[a-z0-9]+$/.test(asset.ref)||!/^image\/|^video\//.test(asset.type||''))throw I18n.error('LyricsPlaylistLocked');
+    const id=asset.blob.id;if(!/^[a-f0-9]{32}$/.test(id)||!asset.ref.startsWith('private-'+id+'.'))throw I18n.error('LyricsBackgroundInvalid');
+    const kind='lyrics-background:'+id,token=this.issue(s,entry,kind),cap=this.tokens.get(token);
+    cap.asset=asset;return `http://127.0.0.1:${await this.port()}/vault/${token}`;
+  }
   async playback(rel){const {s,entry}=await this.lookup(rel);return {rel,audioUrl:`http://127.0.0.1:${await this.port()}/vault/${this.issue(s,entry,'audio')}`};}
   async lookup(rel){const m=/^vault:([a-f0-9]{32}):([a-f0-9]{32})$/.exec(rel||'');if(!m)throw I18n.error("VaultInvalidProtectedTrack");
     const s=this.sessions.get(m[1]);if(!s)throw I18n.error("LyricsPlaylistLocked");
@@ -118,12 +124,12 @@ class VaultStore{
     const token=(req.url||'').split('/')[2],cap=this.tokens.get(token);
     if(!cap||!this.sessions.has(cap.s.d.id)||!['GET','HEAD'].includes(req.method)||this.index.deleted[cap.entry.id]){res.writeHead(404,{'Cache-Control':'no-store'});res.end();return;}
     if(req.headers.origin&&req.headers.origin!=='null'){res.writeHead(403);res.end();return;}
-    const {entry,kind}=cap,desc=kind==='cover'?entry.cover:entry.blob;
+    const {entry,kind}=cap,desc=cap.asset?cap.asset.blob:kind==='cover'?entry.cover:entry.blob;
     const exported=kind==='audio'?this.index.publicRefs[entry.id]:null;
-    const file=exported?this.full(exported.rel):this.full(this.index.objects[desc.id]?.file||'');
+    const file=cap.asset?path.join(this.music,'.pulsedeck-lyrics','backgrounds',desc.id+'.pda'):exported?this.full(exported.rel):this.full(this.index.objects[desc.id]?.file||'');
     const size=exported?(await fsp.stat(file)).size:desc.size;
     let r;try{r=range(req.headers.range,size);}catch{res.writeHead(416,{'Content-Range':`bytes */${size}`});res.end();return;}
-    const type=kind==='cover'?(entry.coverType||'image/jpeg'):({MP3:'audio/mpeg',M4A:'audio/mp4',MP4:'audio/mp4',M4B:'audio/mp4',WAV:'audio/wav',FLAC:'audio/flac',OGG:'audio/ogg',OPUS:'audio/ogg',WEBM:'audio/webm',AAC:'audio/aac'}[entry.meta.ext]||'application/octet-stream');
+    const type=cap.asset?cap.asset.type:kind==='cover'?(entry.coverType||'image/jpeg'):({MP3:'audio/mpeg',M4A:'audio/mp4',MP4:'audio/mp4',M4B:'audio/mp4',WAV:'audio/wav',FLAC:'audio/flac',OGG:'audio/ogg',OPUS:'audio/ogg',WEBM:'audio/webm',AAC:'audio/aac'}[entry.meta.ext]||'application/octet-stream');
     res.writeHead(r.partial?206:200,{'Content-Type':type,'Content-Length':Math.max(0,r.end-r.start+1),'Accept-Ranges':'bytes','Cache-Control':'no-store','Pragma':'no-cache','Access-Control-Allow-Origin':'null','X-Content-Type-Options':'nosniff',...(r.partial?{'Content-Range':`bytes ${r.start}-${r.end}/${size}`}:{})});
     if(req.method==='HEAD'){res.end();return;}
     const stream=exported?fs.createReadStream(file,{start:r.start,end:r.end}):Readable.from(C.chunks(file,desc,desc.key,r.start,r.end));
@@ -221,30 +227,44 @@ class VaultStore{
       }
       await this.saveManifest(target);await this.persist();this.sessions.set(d.id,target);return {added};
     }
-    const exported=await this.exportEntries(entries);
+    const exported=await this.exportEntries(entries,{folderId:L.Folders.ofCategory(targetKey,this.settings())});
     const tracks=await this.listPublic();const result=L.bulkAdd(this.settings(),tracks,targetKey,exported);
     this.commit(result.settings);this.notify();return {added:result.added,exported:exported.length};
   }
-  async exportEntries(entries){
+  async exportEntries(entries,{folderId=''}={}){
+    const settings=this.settings(),folder=folderId?(settings.libraryFolders||[]).find(f=>f.id===folderId):null;
+    if(folderId&&(!folder||!L.Folders.safeDirectory(folder.dir)))throw I18n.error('FolderNotFound');
+    const prefix=folder?folder.dir+'/':'';
+    if(folder){const dir=this.full(folder.dir),st=await fsp.lstat(dir);if(!st.isDirectory()||st.isSymbolicLink())throw I18n.error('FolderUnsafePath');}
+    // Validate ALL existing public copies before decrypting the first file.
+    // Cross-folder relocation is the separate, journalled folder command.
+    for(const entry of entries){const ref=this.index.publicRefs[entry.id];if(ref&&fs.existsSync(this.full(ref.rel))&&L.Folders.ofTrack({rel:ref.rel},settings)!==folderId)throw I18n.error('FolderMoveFirst');}
     const rels=[];
     for(const entry of entries){
       const existing=this.index.publicRefs[entry.id];
       if(existing&&fs.existsSync(this.full(existing.rel))){rels.push(existing.rel);continue;}
       const original=audioName(entry.originalRel,entry.meta);
-      const ext=path.extname(original),base=original.slice(0,original.length-ext.length);let rel=original,n=2;
-      while(fs.existsSync(this.full(rel)))rel=`${base} (${n++})${ext}`;
+      const ext=path.extname(original),base=original.slice(0,original.length-ext.length);let rel=prefix+original,n=2;
+      while(fs.existsSync(this.full(rel)))rel=`${prefix}${base} (${n++})${ext}`;
       const object=this.index.objects[entry.blob.id];if(!object)throw I18n.error("VaultEncryptedFileNotFound");
       await run('decryptFile',this.full(object.file),this.full(rel),entry.blob);
       // Clear output is intentional and explicitly confirmed; failed sidecar write
       // does not delete ciphertext or destroy the only recoverable source.
       let coverPath='';
-      if(entry.cover&&this.index.objects[entry.cover.id]){coverPath=this.full(path.basename(rel,path.extname(rel))+'.'+random().slice(0,6)+('.'+require('../shared/cover-media').extension(entry.coverType||'image/jpeg')));await run('decryptFile',this.full(this.index.objects[entry.cover.id].file),coverPath,entry.cover);}
+      if(entry.cover&&this.index.objects[entry.cover.id]){coverPath=this.full(prefix+path.basename(rel,path.extname(rel))+'.'+random().slice(0,6)+('.'+require('../shared/cover-media').extension(entry.coverType||'image/jpeg')));await run('decryptFile',this.full(this.index.objects[entry.cover.id].file),coverPath,entry.cover);}
       await C.durableJson(this.full(rel+'.pulse.json'),{coverPath,coverType:entry.coverType,title:entry.meta.title,artist:entry.meta.artist,album:entry.meta.album,genre:entry.meta.genre,duration:entry.meta.duration,sourceUrl:entry.meta.sourceUrl,downloaded:entry.meta.downloaded,_pulseTrackId:entry.meta.id,_pulseAddedAt:entry.meta.addedAt});
       if(this.lyricsBridge)await this.lyricsBridge.exportPublic(entry);
       this.index.publicRefs[entry.id]={rel};await this.persist();
       await fsp.unlink(this.full(object.file));delete this.index.objects[entry.blob.id];await this.persist();rels.push(rel);
     }
     return rels;
+  }
+  async remapPublicReferences(moves){
+    const map=new Map(moves.map(m=>[L.token(m.from),m.to])),changes=[];
+    for(const ref of Object.values(this.index.publicRefs)){const target=map.get(L.token(ref.rel));if(target&&target!==ref.rel){changes.push([ref,ref.rel]);ref.rel=target;}}
+    if(!changes.length)return;
+    try{await this.persist();}catch(error){for(const [ref,previous]of changes)ref.rel=previous;throw error;}
+    this.tokens.clear();this.tokenKeys.clear();
   }
   async retirePublicReferences(rels){
     const removed=new Set(rels.map(L.token));let changed=false;
@@ -281,7 +301,7 @@ class VaultStore{
   async unprotect(key,secret){
     const d=this.descriptor(key),auth=await this.authenticate(key,secret),s=this.sessions.get(d.id)||{d,key:auth.keys[d.id],manifest:null};
     if(!s.manifest)s.manifest=await this.readManifest(d,s.key);
-    const rels=await this.exportEntries([...s.manifest.tracks,...(s.manifest.archived||[])].filter(e=>!this.index.deleted[e.id]));
+    const rels=await this.exportEntries([...s.manifest.tracks,...(s.manifest.archived||[])].filter(e=>!this.index.deleted[e.id]),{folderId:L.Folders.ofCategory(key,this.settings())});
     d.deleted=true;delete d.group;await this.persist();
     // Keep only encrypted metadata as a recoverable archive. No second audio copy.
     const next=this.settings();L.addTracks(next,key,rels);this.commit(next);this.lock();this.notify();return {exported:rels.length};

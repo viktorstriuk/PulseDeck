@@ -8,6 +8,7 @@
 })(typeof globalThis === 'object' ? globalThis : this, () => {
   const I18n = typeof module === 'object' && module.exports ? require('../i18n') : globalThis.PulseI18n;
 
+  const Folders = typeof module === 'object' && module.exports ? require('./library-folders') : globalThis.PulseLibraryFolders;
   const own = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
   const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -15,11 +16,18 @@
   const artistKey = value => String(value || '').trim().toLocaleLowerCase('ru');
   const unique = values => [...new Set((Array.isArray(values) ? values : []).map(token).filter(Boolean))];
   const SYSTEM_KEYS = new Set(['all', 'favorite', 'downloads', 'recent']);
-  const SORTS = ['manual', 'recent', 'old', 'title', 'titleDesc', 'artist', 'album', 'durationAsc', 'durationDesc', 'source', 'sizeDesc'];
-  const FIELDS = ['favorites', 'customCategories', 'categoryOrder', 'categoryStyles', 'artistAliases', 'artistNames', 'artistAliasHistory', 'playlistMembership', 'trackOrders', 'trackOrderSchema', 'protectedPlaylists'];
+  const SORTS = ['manual', 'recent', 'old', 'title', 'titleDesc', 'artist', 'album', 'durationAsc', 'durationDesc', 'source', 'sizeDesc', 'loudnessAsc', 'loudnessDesc'];
+  const FIELDS = ['libraryFolders','folderArtistAliases','folderArtistNames','folderArtistAliasHistory','favorites', 'customCategories', 'categoryOrder', 'categoryStyles', 'artistAliases', 'artistNames', 'artistAliasHistory', 'playlistMembership', 'trackOrders', 'trackOrderSchema', 'protectedPlaylists'];
 
   function normalizeOrganization(settings) {
     const next = { ...settings };
+    next.libraryFolders=Folders.normalize(settings.libraryFolders);
+    const folderIds=new Set(next.libraryFolders.map(f=>f.id));
+    for(const field of ['folderArtistAliases','folderArtistNames','folderArtistAliasHistory'])next[field]=Object.fromEntries(Object.entries(record(settings[field])).filter(([id])=>folderIds.has(id)));
+    for(const id of folderIds){
+      const local=normalizeOrganization({artistAliases:next.folderArtistAliases[id],artistNames:next.folderArtistNames[id],artistAliasHistory:next.folderArtistAliasHistory[id],trackOrderSchema:2});
+      next.folderArtistAliases[id]=local.artistAliases;next.folderArtistNames[id]=local.artistNames;next.folderArtistAliasHistory[id]=local.artistAliasHistory;
+    }
     next.protectedPlaylists = {...record(next.protectedPlaylists)};
     next.favorites = unique(next.favorites);
     next.categoryOrder = [...new Set((Array.isArray(next.categoryOrder) ? next.categoryOrder : []).map(String))];
@@ -27,7 +35,7 @@
     next.customCategories = (Array.isArray(next.customCategories) ? next.customCategories : [])
       .filter(c => c && typeof c.id === 'string' && c.id.startsWith('custom:'))
       .filter((c, i, list) => list.findIndex(x => x.id === c.id) === i)
-      .map(c => ({ ...c, name: String(c.name || ''), tracks: unique(c.tracks) }));
+      .map(c => ({ ...c, ...(c.folderId?{folderId:folderIds.has(c.folderId)?c.folderId:''}:{}), name: String(c.name || ''), tracks: unique(c.tracks) }));
     next.artistAliases = Object.create(null);
     for (const [from, to] of Object.entries(record(settings.artistAliases))) {
       const a = artistKey(from), b = artistKey(to);
@@ -45,7 +53,7 @@
     }
     next.playlistMembership = Object.create(null);
     for (const [key, value] of Object.entries(record(settings.playlistMembership))) {
-      if (!key || key === 'all' || key === 'favorite') continue;
+      if (!key || ['all','favorite'].includes(Folders.split(key).base)) continue;
       const included = unique(value?.included), excluded = unique(value?.excluded);
       const exclude = new Set(excluded);
       next.playlistMembership[key] = { included: included.filter(x => !exclude.has(x)), excluded };
@@ -91,7 +99,7 @@
     return current;
   }
 
-  function categories(tracks, settings, includeHidden = false) {
+  function categoriesCore(tracks, settings, includeHidden = false) {
     const base = [
       { key: 'all', label: I18n.t("LibraryAllTracks"), icon: 'music', color: '#8b72ff' },
       { key: 'favorite', label: I18n.t("LibraryFavorites"), icon: 'heartFill', color: '#f174a8' },
@@ -136,9 +144,25 @@
       .sort((a, b) => (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9));
   }
 
+  function categories(tracks,settings,includeHidden=false){
+    if(!(settings.libraryFolders||[]).length)return categoriesCore(tracks,settings,includeHidden);
+    const groups=['',...settings.libraryFolders.map(f=>f.id)],result=[];
+    for(const folderId of groups){
+      const belongs=key=>Folders.ofCategory(key,settings)===folderId;
+      const local={...settings,libraryFolders:[],artistAliases:Folders.aliases(settings,folderId),artistNames:Folders.names(settings,folderId),
+        customCategories:(settings.customCategories||[]).filter(c=>(c.folderId||'')===folderId),
+        protectedPlaylists:Object.fromEntries(Object.entries(settings.protectedPlaylists||{}).filter(([k])=>belongs(k)).map(([k,v])=>[Folders.split(k).base,v])),
+        categoryStyles:Object.fromEntries(Object.entries(settings.categoryStyles||{}).filter(([k])=>belongs(k)).map(([k,v])=>[Folders.split(k).base,v])),
+        categoryOrder:(settings.categoryOrder||[]).filter(belongs).map(k=>Folders.split(k).base)};
+      result.push(...categoriesCore(tracks.filter(t=>Folders.ofTrack(t,settings)===folderId),local,includeHidden).map(c=>({...c,key:Folders.scoped(folderId,c.key),folderId})));
+    }
+    return result;
+  }
+
   // Build sets once per view, not once per track (large libraries remain linear).
   function membershipPredicate(settings, key, now = Date.now()) {
     const custom = (settings.customCategories || []).find(c => c.id === key);
+    const {base}=Folders.split(key),folderId=Folders.ofCategory(key,settings);
     const included = new Set(unique(settings.playlistMembership?.[key]?.included));
     const excluded = new Set(unique(settings.playlistMembership?.[key]?.excluded));
     const favorites = new Set(unique(settings.favorites));
@@ -146,15 +170,16 @@
     return track => {
       if (settings.protectedPlaylists?.[key]) return track.vaultKey === key;
       if (track.vaultKey) return false;
+      if(Folders.ofTrack(track,settings)!==folderId)return false;
       const rel = token(track.rel);
-      if (key === 'all') return true;
-      if (key === 'favorite') return favorites.has(rel);
+      if (base === 'all') return true;
+      if (base === 'favorite') return favorites.has(rel);
       if (custom) return customTracks.has(rel);
       if (excluded.has(rel)) return false;
       if (included.has(rel)) return true;
-      if (key === 'downloads') return !!track.downloaded;
-      if (key === 'recent') return now - Number(track.addedAt || 0) <= 30 * 86400000;
-      if (key.startsWith('artist:')) return resolveArtist(track.artist || '@unknown-artist', settings.artistAliases) === key.slice(7);
+      if (base === 'downloads') return !!track.downloaded;
+      if (base === 'recent') return now - Number(track.addedAt || 0) <= 30 * 86400000;
+      if (base.startsWith('artist:')) return resolveArtist(track.artist || '@unknown-artist', Folders.aliases(settings,folderId)) === base.slice(7);
       return false;
     };
   }
@@ -165,7 +190,13 @@
 
   function baseSort(list, sort) {
     const collate = (a, b) => String(a || '').localeCompare(String(b || ''), 'ru', { sensitivity: 'base', numeric: true });
+    const loudness=(a,b,direction)=>{
+      const av=typeof a.loudnessIntro==='number'&&Number.isFinite(a.loudnessIntro),bv=typeof b.loudnessIntro==='number'&&Number.isFinite(b.loudnessIntro);
+      if(av!==bv)return av?-1:1; // Unknown/failed analysis goes last in BOTH directions.
+      return av?direction*(a.loudnessIntro-b.loudnessIntro):0;
+    };
     const comparators = {
+      loudnessAsc:(a,b)=>loudness(a,b,1),loudnessDesc:(a,b)=>loudness(a,b,-1),
       recent: (a, b) => b.addedAt - a.addedAt,
       old: (a, b) => a.addedAt - b.addedAt,
       title: (a, b) => collate(a.title, b.title), titleDesc: (a, b) => collate(b.title, a.title),
@@ -206,8 +237,8 @@
 
   function addTracks(settings, key, rels) {
     const added = unique(rels);
-    if (key === 'all') return;
-    if (key === 'favorite') { settings.favorites = unique([...(settings.favorites || []), ...added]); return; }
+    if (Folders.split(key).base === 'all') return;
+    if (Folders.split(key).base === 'favorite') { settings.favorites = unique([...(settings.favorites || []), ...added]); return; }
     const custom = settings.customCategories.find(c => c.id === key);
     if (custom) { custom.tracks = unique([...custom.tracks, ...added]); return; }
     const addedSet = new Set(added);
@@ -220,10 +251,11 @@
     if (!categories(tracks, next, true).some(c => c.key === key)) throw I18n.error("LibraryPlaylistNoLongerExists");
     const track = tracks.find(t => token(t.rel) === token(rel));
     if (!track) throw I18n.error("LibraryTrackNoLongerExists");
-    if (key === 'all') return { settings: next, added: false, unchanged: true };
+    if(Folders.ofTrack(track,next)!==Folders.ofCategory(key,next))throw I18n.error('FolderMoveFirst');
+    if (Folders.split(key).base === 'all') return { settings: next, added: false, unchanged: true };
     const has = membershipPredicate(next, key)(track), wanted = token(track.rel);
     if (!has) addTracks(next, key, [wanted]);
-    else if (key === 'favorite') next.favorites = next.favorites.filter(x => token(x) !== wanted);
+    else if (Folders.split(key).base === 'favorite') next.favorites = next.favorites.filter(x => token(x) !== wanted);
     else {
       const custom = next.customCategories.find(c => c.id === key);
       if (custom) custom.tracks = custom.tracks.filter(x => token(x) !== wanted);
@@ -236,9 +268,9 @@
   }
 
   function removeCategory(next, key) {
-    if (SYSTEM_KEYS.has(key)) throw I18n.error("LibrarySystemPlaylistsCannotBeDeleted");
+    if (SYSTEM_KEYS.has(Folders.split(key).base)) throw I18n.error("LibrarySystemPlaylistsCannotBeDeleted");
     next.customCategories = next.customCategories.filter(c => c.id !== key);
-    if (key.startsWith('artist:')) next.categoryStyles[key] = { ...(next.categoryStyles[key] || {}), deleted: true };
+    if (Folders.split(key).base.startsWith('artist:')) next.categoryStyles[key] = { ...(next.categoryStyles[key] || {}), deleted: true };
     else delete next.categoryStyles[key];
     next.categoryOrder = next.categoryOrder.filter(k => k !== key);
     delete next.playlistMembership[key];
@@ -250,6 +282,7 @@
     const cats = categories(tracks, next, true);
     const source = cats.find(c => c.key === sourceKey), target = cats.find(c => c.key === targetKey);
     if (!source || !target || sourceKey === targetKey) throw I18n.error("LibrarySelectTwoDifferentExistingPlaylists");
+    if(Folders.ofCategory(sourceKey,next)!==Folders.ofCategory(targetKey,next))throw I18n.error('FolderMoveFirst');
     const moved = unique([
       ...tracks.filter(membershipPredicate(next, sourceKey)).map(t => t.rel),
       ...(source.tracks || []), ...(next.playlistMembership[sourceKey]?.included || []),
@@ -268,22 +301,24 @@
     const source = cats.find(c => c.key === sourceKey && c.kind === 'artist');
     const target = cats.find(c => c.key === targetKey && c.kind === 'artist');
     if (!source || !target || sourceKey === targetKey) throw I18n.error("LibraryTwoDifferentArtistPlaylistsAreRequired");
-    const from = source.sourceArtistNormalized, to = resolveArtist(target.sourceArtistNormalized, next.artistAliases);
+    const folderId=Folders.ofCategory(sourceKey,next);if(folderId!==Folders.ofCategory(targetKey,next))throw I18n.error('FolderMoveFirst');
+    const rules=Folders.aliasState(next,folderId);
+    const from = source.sourceArtistNormalized, to = resolveArtist(target.sourceArtistNormalized, rules.aliases);
     if (from === to) throw I18n.error("LibraryTheseArtistsAreAlreadyMergedUnderOneRule");
     const moved = unique(tracks.filter(membershipPredicate(next, sourceKey)).map(t => t.rel));
     const membership = clone(next.playlistMembership[sourceKey] || {included:[],excluded:[]});
     const targetPins = new Set(next.playlistMembership[targetKey]?.included || []);
     // Automatic artist membership follows aliases, not sticky manual pins. Only
     // explicitly included tracks need transfer; record new pins for a later split.
-    next.artistAliasHistory.push({from,to,membership,orders:clone(next.trackOrders[sourceKey] || {}),
+    rules.history.push({from,to,membership,orders:clone(next.trackOrders[sourceKey] || {}),
       added:membership.included.filter(rel => !targetPins.has(rel))});
     addTracks(next, targetKey, membership.included);
     const movedSet = new Set(moved);
     next.playlistMembership[targetKey].excluded = next.playlistMembership[targetKey].excluded.filter(rel => !movedSet.has(rel));
-    next.artistNames[from] = source.label;
-    next.artistNames[to] = target.label;
-    next.artistAliases[from] = to;
-    for (const name of Object.keys(next.artistAliases)) next.artistAliases[name] = resolveArtist(name, next.artistAliases);
+    rules.names[from] = source.label;
+    rules.names[to] = target.label;
+    rules.aliases[from] = to;
+    for (const name of Object.keys(rules.aliases)) rules.aliases[name] = resolveArtist(name, rules.aliases);
     removeCategory(next, sourceKey);
     next.categoryStyles[targetKey] = { ...(next.categoryStyles[targetKey] || {}), deleted: false };
     return { settings: normalizeOrganization(next), sourceKey, targetKey, moved: moved.length };
@@ -301,6 +336,7 @@
     const next = normalizeOrganization(clone(settings));
     if (!categories(tracks,next,true).some(c => c.key === key)) throw I18n.error("LibraryPlaylistNoLongerExists");
     const selected = requireTracks(tracks,rels), member = membershipPredicate(next,key);
+    if(selected.some(t=>Folders.ofTrack(t,next)!==Folders.ofCategory(key,next)))throw I18n.error('FolderMoveFirst');
     const added = selected.filter(t => !member(t)).length;
     addTracks(next,key,selected.map(t => t.rel));
     return {settings:next,targetKey:key,added,count:selected.length};
@@ -309,11 +345,11 @@
 
   function bulkRemove(settings, tracks, key, rels) {
     const next=normalizeOrganization(clone(settings));
-    if(key==='all')throw I18n.error("LibraryRemovingTracksFromAllAlsoRequiresDeletingTheir");
+    if(Folders.split(key).base==='all')throw I18n.error("LibraryRemovingTracksFromAllAlsoRequiresDeletingTheir");
     if(!categories(tracks,next,true).some(c=>c.key===key))throw I18n.error("LibraryPlaylistNoLongerExists");
     const selected=requireTracks(tracks,rels), wanted=new Set(selected.map(t=>token(t.rel)));
     const removed=selected.filter(membershipPredicate(next,key)).length;
-    if(key==='favorite')next.favorites=next.favorites.filter(r=>!wanted.has(token(r)));
+    if(Folders.split(key).base==='favorite')next.favorites=next.favorites.filter(r=>!wanted.has(token(r)));
     else {
       const custom=next.customCategories.find(c=>c.id===key);
       if(custom)custom.tracks=custom.tracks.filter(r=>!wanted.has(token(r)));
@@ -327,7 +363,7 @@
     let next=normalizeOrganization(clone(settings));
     const wanted=[...new Set(Array.isArray(keys)?keys:[])], cats=categories(tracks,next,true);
     if(!wanted.length || wanted.some(k=>!cats.some(c=>c.key===k)))throw I18n.error("AppRefreshYourPlaylistSelection");
-    const eligible=action==='delete'?wanted.filter(k=>!SYSTEM_KEYS.has(k)):wanted;
+    const eligible=action==='delete'?wanted.filter(k=>!SYSTEM_KEYS.has(Folders.split(k).base)):wanted;
     const skipped=wanted.filter(k=>!eligible.includes(k));
     if(action==='merge' && (!wanted.includes(targetKey)||wanted.length<2))throw I18n.error("LibrarySelectThePlaylistToKeep");
 
@@ -356,27 +392,29 @@
   }
 
   function artistGroups(settings, tracks) {
-    const groups = new Map(), aliases = settings.artistAliases || {};
-    const names = new Map(Object.entries(settings.artistNames || {}));
-    for (const t of tracks) if (artistKey(t.artist)) names.set(artistKey(t.artist),String(t.artist).trim());
-    const artists = new Set([...names.keys(),...Object.keys(aliases),...Object.values(aliases)]);
-    for (const raw of artists) {
-      const name = artistKey(raw), canonical = resolveArtist(name,aliases);
-      if (!canonical) continue;
-      if (!groups.has(canonical)) groups.set(canonical,{key:`artist:${canonical}`,canonical,members:[],label:names.get(canonical)||canonical});
-      groups.get(canonical).members.push({name,label:names.get(name)||name});
+    const result=[];
+    for(const folderId of ['',...(settings.libraryFolders||[]).map(f=>f.id)]){
+      const groups=new Map(),aliases=Folders.aliases(settings,folderId),names=new Map(Object.entries(Folders.names(settings,folderId)));
+      for(const t of tracks)if(Folders.ofTrack(t,settings)===folderId&&artistKey(t.artist))names.set(artistKey(t.artist),String(t.artist).trim());
+      for(const raw of new Set([...names.keys(),...Object.keys(aliases),...Object.values(aliases)])){
+        const name=artistKey(raw),canonical=resolveArtist(name,aliases);if(!canonical)continue;
+        if(!groups.has(canonical))groups.set(canonical,{key:Folders.scoped(folderId,`artist:${canonical}`),folderId,canonical,members:[],label:names.get(canonical)||canonical});
+        groups.get(canonical).members.push({name,label:names.get(name)||name});
+      }
+      result.push(...[...groups.values()].filter(g=>g.members.length>1&&g.members.some(m=>own(aliases,m.name))));
     }
-    return [...groups.values()].filter(g => g.members.length > 1 && g.members.some(m => own(aliases,m.name)));
+    return result;
   }
 
   function selectionArtists(settings, tracks, rels) {
     const selected = requireTracks(tracks,rels);
-    const canonical = [...new Set(selected.map(t => resolveArtist(t.artist,settings.artistAliases)).filter(Boolean))];
+    const folderId=Folders.ofTrack(selected[0],settings),sameFolder=selected.every(t=>Folders.ofTrack(t,settings)===folderId);
+    const canonical = [...new Set(selected.map(t => resolveArtist(t.artist,Folders.aliases(settings,Folders.ofTrack(t,settings)))).filter(Boolean))];
     // A group elsewhere in the library is NOT part of this selection. In 2.6.3
     // two tracks by A incorrectly exposed Split merely because B was aliased to A.
     const raw = new Set(selected.map(t=>artistKey(t.artist)).filter(Boolean));
-    const groups = artistGroups(settings,tracks).filter(g => g.members.filter(m=>raw.has(m.name)).length > 1);
-    return {canonical,groups,canAlias:canonical.length>1,canSplit:groups.length>0};
+    const groups = artistGroups(settings,tracks).filter(g => g.folderId===folderId && g.members.filter(m=>raw.has(m.name)).length > 1);
+    return {canonical,groups,folderId,canAlias:sameFolder&&canonical.length>1,canSplit:sameFolder&&groups.length>0};
   }
 
   function aliasSelectedArtists(settings, tracks, rels, targetKey) {
@@ -388,7 +426,7 @@
     const removed = [];
     // Work on a private copy; a failure cannot persist half of a multi-rule edit.
     for (const name of info.canonical) {
-      const sourceKey = `artist:${resolveArtist(name,next.artistAliases)}`;
+      const sourceKey = Folders.scoped(info.folderId,`artist:${resolveArtist(name,Folders.aliases(next,info.folderId))}`);
       if (sourceKey === targetKey) continue;
       if (next.categoryStyles[sourceKey]?.deleted) next.categoryStyles[sourceKey] = {...next.categoryStyles[sourceKey],deleted:false};
       const result = aliasArtist(next,tracks,sourceKey,targetKey);
@@ -398,39 +436,30 @@
   }
 
   function splitArtistGroups(settings, tracks, keys) {
-    const next = normalizeOrganization(clone(settings));
-    const requested = new Set((Array.isArray(keys)?keys:[]).map(k => String(k).replace(/^artist:/,''))
-      .map(name => resolveArtist(name,next.artistAliases)));
-    const groups = artistGroups(next,tracks).filter(g => requested.has(g.canonical));
-    if (!groups.length) throw I18n.error("LibraryThereAreNoMergedArtistsHere");
-    const rawMembers = new Set(groups.flatMap(g => g.members.map(m => m.name)));
-    const canonical = new Set(groups.map(g => g.canonical));
-    const history = next.artistAliasHistory.filter(h => canonical.has(resolveArtist(h.from,next.artistAliases)));
-    const recorded = new Set(history.map(h => h.from));
-    const legacySources = new Set([...rawMembers].filter(name => own(next.artistAliases,name) && !recorded.has(name)));
-    // Reverse transfers in reverse order, preserving memberships present before
-    // each rule, custom playlists, favorites and unrelated artist groups.
-    for (const h of [...history].reverse()) {
-      const sourceKey = `artist:${h.from}`, targetKey = `artist:${h.to}`;
-      const target = next.playlistMembership[targetKey];
-      if (target) { const added = new Set(h.added); target.included = target.included.filter(rel => !added.has(rel)); }
-      next.playlistMembership[sourceKey] = clone(h.membership);
-      if (Object.keys(h.orders).length) next.trackOrders[sourceKey] = clone(h.orders);
-    }
-    next.artistAliasHistory = next.artistAliasHistory.filter(h => !history.includes(h));
-    const byRel = new Map(tracks.map(t => [token(t.rel),artistKey(t.artist)]));
-    for (const name of rawMembers) {
-      const key = `artist:${name}`;
-      delete next.artistAliases[name];
-      next.categoryStyles[key] = {...(next.categoryStyles[key]||{}),deleted:false,hidden:false};
-      const membership = next.playlistMembership[key];
-      if (membership) {
-        // 2.6.0–2.6.2 pinned automatic tracks into the destination as well. Do
-        // not leave those duplicate memberships behind when the rule is gone.
-        membership.included = membership.included.filter(rel => !legacySources.has(byRel.get(rel)) || byRel.get(rel) === name);
+    const next=normalizeOrganization(clone(settings)),requested=new Set(Array.isArray(keys)?keys:[]);
+    const groups=artistGroups(next,tracks).filter(g=>requested.has(g.key));
+    if(!groups.length)throw I18n.error('LibraryThereAreNoMergedArtistsHere');
+    const allMembers=[];
+    for(const group of groups){
+      const rules=Folders.aliasState(next,group.folderId),rawMembers=new Set(group.members.map(m=>m.name));
+      const history=rules.history.filter(h=>resolveArtist(h.from,rules.aliases)===group.canonical);
+      const recorded=new Set(history.map(h=>h.from));
+      const legacy=new Set([...rawMembers].filter(name=>own(rules.aliases,name)&&!recorded.has(name)));
+      for(const h of [...history].reverse()){
+        const sourceKey=Folders.scoped(group.folderId,`artist:${h.from}`),targetKey=Folders.scoped(group.folderId,`artist:${h.to}`),target=next.playlistMembership[targetKey];
+        if(target){const added=new Set(h.added);target.included=target.included.filter(rel=>!added.has(rel));}
+        next.playlistMembership[sourceKey]=clone(h.membership);if(Object.keys(h.orders).length)next.trackOrders[sourceKey]=clone(h.orders);
       }
+      const remaining=rules.history.filter(h=>!history.includes(h));
+      if(group.folderId)next.folderArtistAliasHistory[group.folderId]=remaining;else next.artistAliasHistory=remaining;
+      const byRel=new Map(tracks.filter(t=>Folders.ofTrack(t,next)===group.folderId).map(t=>[token(t.rel),artistKey(t.artist)]));
+      for(const name of rawMembers){
+        const key=Folders.scoped(group.folderId,`artist:${name}`);delete rules.aliases[name];next.categoryStyles[key]={...(next.categoryStyles[key]||{}),deleted:false,hidden:false};
+        const membership=next.playlistMembership[key];if(membership)membership.included=membership.included.filter(rel=>!legacy.has(byRel.get(rel))||byRel.get(rel)===name);
+      }
+      allMembers.push(...rawMembers);
     }
-    return {settings:normalizeOrganization(next),groups:groups.map(g=>g.key),artists:[...rawMembers],count:rawMembers.size};
+    return {settings:normalizeOrganization(next),groups:groups.map(g=>g.key),artists:allMembers,count:allMembers.length};
   }
 
   function splitSelectedArtists(settings, tracks, rels) {
@@ -487,7 +516,7 @@
   const trackTitle=t=>String(t?.title || I18n.t('AppUntitled'));
   const trackArtist=t=>String(t?.artist || I18n.t('UnknownArtist'));
   const trackCreator=t=>String(t?.artist || I18n.t('AppUnknownCreator'));
-  return { trackTitle, trackArtist, trackCreator, token, artistKey, unique, SORTS, SYSTEM_KEYS, normalizeOrganization, resolveArtist, categories, containsTrack,
+  return { Folders, trackTitle, trackArtist, trackCreator, token, artistKey, unique, SORTS, SYSTEM_KEYS, normalizeOrganization, resolveArtist, categories, containsTrack,
     membershipPredicate, baseSort, applyOrder, view, mergeVisibleOrder, addTracks, toggleMembership,
     mergePlaylists, aliasArtist, bulkAdd, bulkRemove, bulkCategories, playlistBatchEligibility, aliasSelectedPlaylists, requireTracks, artistGroups, selectionArtists, aliasSelectedArtists, splitArtistGroups, splitSelectedArtists, organizationPatch, removeTrack, OrderHistory };
 });

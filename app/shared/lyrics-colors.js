@@ -7,26 +7,31 @@
   function luminance(value){const a=typeof value==='string'?rgb(value):value;const linear=a.map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;});return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;}
   const ratio=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
   const mix=(a,b,t)=>a.map((v,i)=>v*(1-t)+b[i]*t);
-  const modes=hasCover=>hasCover?['gradient','cover','solid']:['gradient','solid'];
-  const nextMode=(mode,cover)=>{const allowed=modes(cover);if(mode==='cover'&&!cover)mode='gradient';return allowed[(allowed.indexOf(mode)+1)%allowed.length];};
+  const modes=(hasCover,hasCustom=false)=>[... (hasCover?['gradient','cover','solid']:['gradient','solid']),...(hasCustom?['custom']:[])];
+  const nextMode=(mode,cover,custom=false)=>{const allowed=modes(cover,custom);if(!allowed.includes(mode))mode='gradient';return allowed[(allowed.indexOf(mode)+1)%allowed.length];};
   function gradientSamples(colors){const samples=[];for(let i=0;i<colors.length-1;i++)for(let k=0;k<=32;k++)samples.push(mix(rgb(colors[i]),rgb(colors[i+1]),k/32));return samples.length?samples:[rgb(colors[0]||'#302036')];}
   function palette(pixels){
     const bins=new Map();let sum=[0,0,0],n=0;
     for(let i=0;i+3<pixels.length;i+=4){if(pixels[i+3]<80)continue;const c=[pixels[i],pixels[i+1],pixels[i+2]];sum=sum.map((v,j)=>v+c[j]);n++;const key=c.map(v=>Math.round(v/32)).join(',');const b=bins.get(key)||{sum:[0,0,0],n:0};b.sum=b.sum.map((v,j)=>v+c[j]);b.n++;bins.set(key,b);}
     const colors=[...bins.values()].sort((a,b)=>b.n-a.n).map(b=>b.sum.map(v=>v/b.n));
-    const first=colors[0]||[48,32,54];let second=colors.find(c=>c.reduce((d,v,i)=>d+Math.abs(v-first[i]),0)>90)||mix(first,[18,28,46],.6);
+    const first=colors[0]||[48,32,54];let second=colors.find(c=>c.reduce((d,v,i)=>d+Math.abs(v-first[i]),0)>90)||mix(first,[0,0,0],.5);
     // Rich subdued default palette; don't recolor imported user themes.
-    const darken=c=>hex(mix(c,[10,13,22],.42));
-    return {colors:[darken(first),darken(second)],average:n?sum.map(v=>v/n):[48,32,54]};
+    const darken=c=>hex(mix(c,[0,0,0],.35));
+    const third=colors.find(c=>c.reduce((d,v,i)=>d+Math.abs(v-first[i]),0)>60&&c.reduce((d,v,i)=>d+Math.abs(v-second[i]),0)>60)||mix(first,second,.5);
+    // Every cover suggestion stays within the cover's colour family, including
+    // monochrome artwork: only its extracted colours and their shades are used.
+    const variants=n?[[darken(first),darken(second)],[hex(second),darken(third)],
+      [hex(mix(first,[255,255,255],.20)),darken(third)],[darken(second),hex(mix(first,[0,0,0],.65))]]:[];
+    return {colors:[darken(first),darken(second)],variants,average:n?sum.map(v=>v/n):[48,32,54]};
   }
-  function scene(theme,{hasCover=false,average=[48,32,54]}={}){
-    const mode=theme.mode==='cover'&&!hasCover?'gradient':theme.mode;
+  function scene(theme,{hasCover=false,hasCustom=false,average=[48,32,54]}={}){
+    const mode=(theme.mode==='cover'&&!hasCover)||(theme.mode==='custom'&&!hasCustom)?'gradient':theme.mode;
     const coverOpacity=.72;
     const samples=mode==='solid'?[rgb(theme.background)]:gradientSamples(theme.gradientColors);
     if(mode==='gradient'){for(let i=0;i<theme.gradientColors.length-1;i++){const a=rgb(theme.gradientColors[i]),b=rgb(theme.gradientColors[i+1]);samples.push(a.map((v,j)=>Math.min(v,b[j])),a.map((v,j)=>Math.max(v,b[j])));}}
     const candidates=[{active:'#ffffff',text:'#bfc0c9',tint:[0,0,0]},{active:'#000000',text:'#404044',tint:[255,255,255]}];
     let chosen;
-    if(mode==='cover'){
+    if(mode==='cover'||mode==='custom'){
       // Cover can contain arbitrarily small black/white details missed by a thumbnail.
       // Use average luminance for preference, BUT prove contrast against BOTH
       // extrema of every possible RGB pixel, not merely an average or sampled patch.

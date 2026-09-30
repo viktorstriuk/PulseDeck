@@ -31,9 +31,9 @@ body{padding:5px}
 .controls button{width:34px;height:34px;border:0;border-radius:10px;color:var(--fg);background:rgba(255,255,255,.055);display:grid;place-items:center;cursor:pointer;transition:background .15s ease,transform .15s ease}
 .controls button svg{display:block;width:14px;height:14px}.controls button:hover{background:rgba(255,255,255,.105)}.controls button:active{transform:scale(.94)}
 
-.transport-row{display:grid;grid-template-columns:auto minmax(32px,1fr) auto;gap:8px;align-items:center;min-width:0;-webkit-app-region:no-drag}
-.transport-time{font-variant-numeric:tabular-nums;font-size:9px;color:var(--muted);white-space:nowrap;line-height:1}
-.progress-wrap{position:relative;height:12px;cursor:pointer;display:flex;align-items:center;outline:none;-webkit-app-region:no-drag}
+.transport-row{display:flex;gap:8px;align-items:center;min-width:0;-webkit-app-region:no-drag}
+.transport-time{flex:0 0 auto;font-variant-numeric:tabular-nums;font-size:9px;color:var(--muted);white-space:nowrap;line-height:1}
+.progress-wrap{flex:1 1 0;min-width:32px;position:relative;height:12px;cursor:pointer;display:flex;align-items:center;outline:none;-webkit-app-region:no-drag}
 .progress-wrap::before{content:"";position:absolute;left:0;right:0;height:4px;border-radius:99px;background:rgba(255,255,255,.13)}
 .progress-wrap i{position:absolute;left:0;height:4px;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));pointer-events:none}
 .progress-wrap b{position:absolute;left:0;width:10px;height:10px;border-radius:50%;background:var(--fg);transform:translateX(-50%) scale(.55);opacity:0;transition:opacity .13s ease,transform .13s ease;pointer-events:none}

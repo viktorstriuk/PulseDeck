@@ -1243,3 +1243,59 @@ video.cover-img{width:100%;height:100%;object-fit:cover;pointer-events:none;}
 .cover-tile video{width:100%;height:100%;object-fit:cover;border-radius:inherit;pointer-events:none;}
 
 .library-video-background{position:fixed;inset:70px 0 96px;width:100%;height:calc(100% - 166px);object-fit:cover;z-index:-2;pointer-events:none;opacity:var(--library-bg-opacity,.34);filter:saturate(.98) brightness(var(--library-bg-brightness,.86));}
+
+/* 2.9.5: menu commands retain their DOM identity during reordering. */
+.context-menu.menu-reordering{min-width:274px}
+.context-submenu.menu-reordering{min-width:274px}
+.menu-move-handle{display:inline-grid;place-items:center;flex:0 0 24px;width:24px;min-height:30px;margin-left:-7px;color:var(--muted);cursor:grab;touch-action:none;border-radius:5px;user-select:none}
+.menu-move-handle:hover,.menu-move-handle:focus-visible{color:var(--text);outline:1px solid var(--accent);outline-offset:1px}
+.menu-moving{position:relative;z-index:10;border-radius:10px;background:color-mix(in srgb,var(--accent) 18%,var(--panel,#20232d));box-shadow:0 5px 16px #0003}
+.menu-moving .menu-move-handle{cursor:grabbing;color:var(--accent)}
+.context-item .cover-animation-mark{display:inline-grid;place-items:center;margin-left:auto;flex:0 0 20px;color:var(--accent)}
+
+.loudness-status{display:block;max-width:290px;font-size:11px;color:var(--muted);white-space:normal;line-height:1.4;padding:4px 8px}.loudness-status.failed{color:var(--danger,#ee7788)}
+
+/* Folder overview -> compact, stable breadcrumb. Playlist drag handles stay separate. */
+.library-folder-tab{display:flex;align-items:center;gap:9px;flex:0 0 auto;max-width:260px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--cat-color) 26%,var(--border,#30333d));border-radius:12px;background:color-mix(in srgb,var(--cat-color) 7%,var(--panel,#171920));color:var(--text,#f4f5fa);cursor:pointer}
+.library-folder-tab:hover{background:color-mix(in srgb,var(--cat-color) 17%,var(--panel,#171920));border-color:var(--cat-color)}
+.folder-tab-icon{color:var(--cat-color);display:grid;place-items:center}.folder-tab-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}.library-folder-tab small{font-size:11px;color:var(--muted)}
+.library-folder-crumb{display:inline-grid;place-items:center;width:42px;height:34px;flex:0 0 42px;margin-right:8px;border:1px solid color-mix(in srgb,var(--cat-color) 45%,var(--border,#30333d));border-radius:8px;background:color-mix(in srgb,var(--cat-color) 12%,var(--panel,#171920));color:var(--cat-color);cursor:pointer}
+.library-folder-crumb:hover{border-color:var(--cat-color)}.library-folder-add{flex:0 0 36px;margin-right:7px}
+.category-tabs:has(.library-folder-crumb) .category-tab{animation:folder-playlists-in .22s ease-out both}
+@keyframes folder-playlists-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.folder-context-note{max-width:300px;padding:9px 13px;color:var(--muted);font-size:11px;line-height:1.45}
+.category-sidebar .library-folder-tab{max-width:none;width:100%}
+@media(prefers-reduced-motion:reduce){.category-tabs:has(.library-folder-crumb) .category-tab{animation:none}}
+
+/* Saved settings profiles. Full-width apply targets keep one-click switching
+   distinct from rename / replace / delete, including keyboard navigation. */
+.presets-settings-page .settings-page-header{display:flex;gap:20px;justify-content:space-between;align-items:flex-start;margin-bottom:22px}
+.presets-settings-page .settings-page-header .button{white-space:nowrap}
+.preset-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px}
+.preset-card{border:1px solid var(--border);border-radius:18px;background:var(--surface);overflow:hidden;transition:border-color .18s,transform .18s}
+.preset-card:hover{border-color:var(--accent)}
+.preset-apply{display:flex;width:100%;align-items:center;gap:14px;padding:19px;text-align:left;background:none;border:0;color:inherit;cursor:pointer}
+.preset-visual{flex:0 0 52px;width:52px;height:52px;display:grid;place-items:center;border-radius:14px;color:var(--preset-accent);background:color-mix(in srgb,var(--preset-accent) 14%,transparent)}
+.preset-visual img{width:44px;height:44px;object-fit:contain}
+.preset-copy{display:flex;flex-direction:column;gap:7px;min-width:0;flex:1}
+.preset-copy strong{font-size:17px;overflow-wrap:anywhere}
+.preset-copy>span{font-size:11px;line-height:1.65;color:var(--muted)}
+.preset-apply-glyph{font-size:23px;color:var(--muted)}
+.preset-card-actions{display:flex;flex-wrap:wrap;gap:5px 15px;padding:0 18px 14px}
+.preset-card-actions button{font-size:11px;padding:3px 0}
+.preset-empty{grid-column:1/-1;padding:44px 25px;text-align:center;border:1px dashed var(--border);border-radius:20px;color:var(--muted)}
+.preset-empty h3{color:var(--text);margin:15px 0 8px}
+.preset-empty p{max-width:420px;margin:0 auto}
+.preset-scope-note{margin-top:22px;padding-top:18px;border-top:1px solid var(--border);font-size:12px;line-height:1.65}
+.preset-editor{width:min(600px,calc(100vw - 40px))}
+.preset-editor form>header{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.preset-name{display:flex;flex-direction:column;gap:9px;margin:22px 0;font-size:14px}
+.preset-name input{width:100%;box-sizing:border-box}
+#presetSections{border:0;padding:0;margin:0}#presetSections[hidden]{display:none}
+#presetSections legend{padding:0;margin:0 0 12px;font-size:14px}
+.preset-section-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.preset-section-choice{display:flex;align-items:center;gap:10px;border:1px solid var(--border);padding:12px;border-radius:12px;cursor:pointer;font-size:13px}
+.preset-section-choice:has(:checked){background:var(--accent-soft);border-color:var(--accent)}
+.preset-section-choice input{accent-color:var(--accent);width:16px;height:16px;flex:0 0 16px}
+.preset-editor .setting-help{margin:18px 0;font-size:12px;line-height:1.65}
+@media(max-width:750px){.presets-settings-page .settings-page-header{flex-wrap:wrap}.preset-section-options{grid-template-columns:1fr}}

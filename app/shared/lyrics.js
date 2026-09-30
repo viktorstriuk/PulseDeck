@@ -12,7 +12,7 @@
     if(!raw||typeof raw!=='object')raw={};
     const background=hex(raw.background||raw.bgcolor,'#302036');
     const colors=Array.isArray(raw.gradientColors)?raw.gradientColors.filter(c=>hex(c,null)).slice(0,4):[];
-    return {mode:['solid','gradient','cover'].includes(raw.mode)?raw.mode:'gradient',background,
+    return {...(typeof raw.customBackground==='string'&&/^(?:custom-[a-f0-9]{64}|private-[a-f0-9]{32})\.(?:png|jpg|jpeg|webp|gif|bmp|avif|mp4|webm|mov|ogv)$/.test(raw.customBackground)?{customBackground:raw.customBackground}:{}),mode:['solid','gradient','cover','custom'].includes(raw.mode)?raw.mode:'gradient',background,
       gradientColors:colors.length>1?colors:[background,'#141b30'],gradientAngle:number(raw.gradientAngle,135,0,360),
       text:hex(raw.text||raw.textcolor,null),activeText:hex(raw.activeText,null),autoContrast:raw.autoContrast!==false,
       fontScale:number(raw.fontScale,100,65,150),paletteSource:raw.paletteSource==='manual'?'manual':'cover'};

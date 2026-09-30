@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-const hostVersion = "2.9.4"
+const hostVersion = "2.9.5"
 const maxCommandBytes = 1024 * 1024
 
 type command struct {
