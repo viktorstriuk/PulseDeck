@@ -530,7 +530,14 @@
             </section>
             <details id="updatesNotesWrap" class="credits-group release-notes hidden"><summary class="credits-summary"><b data-i18n="UpdatesReleaseNotes"></b><i class="credits-chevron"></i></summary><div id="updatesNotes" class="release-notes-text"></div></details>
             <div class="release-preferences">
-              <label class="player-switch-card"><input id="updatesAuto" type="checkbox" checked><span class="mini-switch-visual"></span><span><b data-i18n="UpdatesAutoCheck"></b><small data-i18n="UpdatesAutoCheckHint"></small></span></label>
+              <div class="updates-auto-card">
+                <label class="player-switch-card"><input id="updatesAuto" type="checkbox" checked aria-controls="updatesInterval"><span class="mini-switch-visual"></span><span><b data-i18n="UpdatesAutoCheck"></b><small data-i18n="UpdatesAutoCheckHint"></small></span></label>
+                <div id="updatesInterval" class="updates-interval">
+                  <label for="updatesIntervalValue" data-i18n="UpdatesIntervalEvery"></label>
+                  <div class="updates-interval-fields"><input id="updatesIntervalValue" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="12" aria-describedby="updatesIntervalHint" maxlength="32"><select id="updatesIntervalUnit" aria-label="Interval unit" data-i18n-aria-label="UpdatesIntervalUnit"><option value="minutes" data-i18n="UpdatesIntervalMinutes"></option><option value="hours" selected data-i18n="UpdatesIntervalHours"></option><option value="days" data-i18n="UpdatesIntervalDays"></option></select></div>
+                  <small id="updatesIntervalHint" data-i18n="UpdatesIntervalHint"></small>
+                </div>
+              </div>
               <label class="player-switch-card"><input id="updatesPrerelease" type="checkbox"><span class="mini-switch-visual"></span><span><b data-i18n="UpdatesPrerelease"></b><small data-i18n="UpdatesPrereleaseHint"></small></span></label>
               <label class="player-switch-card"><input id="updatesComponentsAuto" type="checkbox" checked><span class="mini-switch-visual"></span><span><b data-i18n="ComponentsAutoCheck"></b><small data-i18n="ComponentsAutoCheckHint"></small></span></label>
             </div>
@@ -657,6 +664,8 @@
   </div>
   <script src="../shared/i18n.js"></script>
   <script src="../i18n/dom.js"></script>
+  <script src="../shared/cover-media.js"></script>
+  <script src="cover-media.js"></script>
   <script src="icons.js"></script>
   <script src="../shared/playlist-icons.js"></script>
   <script src="../shared/app-icon.js"></script>
@@ -677,6 +686,7 @@
   <script src="lyrics-immersive.js"></script>
   <script src="lyrics-view.js"></script>
   <script src="lyrics-studio.js"></script>
+  <script src="../shared/update-interval.js"></script>
   <script src="release-center.js"></script>
   <script src="../shared/online-search.js"></script>
   <script src="online-search-ui.js"></script>

@@ -1238,3 +1238,8 @@ html[data-input-modality=keyboard] .window-button:focus {outline:2px solid var(-
    An unpositioned absolute input used to scroll the entire settings shell. */
 label.switch-row {position:relative;}
 label.switch-row > input {top:50%;left:12px;transform:translateY(-50%);margin:0;z-index:1;}
+
+video.cover-img{width:100%;height:100%;object-fit:cover;pointer-events:none;}
+.cover-tile video{width:100%;height:100%;object-fit:cover;border-radius:inherit;pointer-events:none;}
+
+.library-video-background{position:fixed;inset:70px 0 96px;width:100%;height:calc(100% - 166px);object-fit:cover;z-index:-2;pointer-events:none;opacity:var(--library-bg-opacity,.34);filter:saturate(.98) brightness(var(--library-bg-brightness,.86));}

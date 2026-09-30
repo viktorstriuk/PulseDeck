@@ -175,26 +175,29 @@ const I18n = window.PulseI18n;
   }
 
   function applyCover() {
-    const fallback = String(state.fallbackCover || defaultCover);
-    const requested = String(state.cover || '');
-    const source = [requested, fallback, defaultCover].find(url => url && !failedCovers.has(url)) || defaultCover;
-    for (const img of [cover, orbCover]) {
-      if (img.getAttribute('src') !== source) img.src = source;
-      img.classList.toggle('is-placeholder', !requested || source !== requested);
+    const fallback=String(state.fallbackCover||defaultCover),requested=String(state.cover||'');
+    const source=[requested,fallback,defaultCover].find(url=>url&&!failedCovers.has(url))||defaultCover;
+    for(const id of ['cover','orbCover']){
+      let media=document.getElementById(id);const type=source===requested?state.coverType:'';
+      if((media.tagName==='VIDEO')!==window.PulseCoverMedia.isVideo(source,type)){
+        const replacement=window.PulseCoverMedia.element(source,type,media.className);replacement.id=id;media.pause?.();media.replaceWith(replacement);media=replacement;
+      }
+      if(media.getAttribute('src')!==source)media.src=source;
+      media.classList.toggle('is-placeholder',!requested||source!==requested);
     }
   }
-  for (const img of [cover, orbCover]) img.addEventListener('error', () => {
-    const source = img.getAttribute('src');
-    if (!source || failedCovers.has(source)) return;
-    failedCovers.add(source); applyCover();
-  });
+  document.addEventListener('error',event=>{
+    const media=event.target;if(!['cover','orbCover'].includes(media?.id))return;
+    const source=media.getAttribute('src');if(!source||failedCovers.has(source))return;
+    failedCovers.add(source);applyCover();
+  },true);
 
   function applyState(next={}){
     state={...state,...next};
     stateBaseCurrent=Number(state.currentTime)||0; stateReceivedAt=performance.now();
     I18n.setText(title,()=>state.title||I18n.t('AppName')); I18n.setText(artist,()=>(state.artist||I18n.t("AppTagline"))); playlist.textContent=state.playlist||'';
     const src=String(state.cover||'');
-    if(src && src!==String(card.dataset.paletteSource||'')){card.dataset.paletteSource=src;extractCoverPalette(src);} else if(!src){card.dataset.paletteSource='';extractCoverPalette('');}
+    if(src && src!==String(card.dataset.paletteSource||'')){card.dataset.paletteSource=src;extractCoverPalette(window.PulseCoverMedia.isVideo(src,state.coverType)?'':src);} else if(!src){card.dataset.paletteSource='';extractCoverPalette('');}
     applyCover();
     scheduleHitRegions();
     updateTransport();

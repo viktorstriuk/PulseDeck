@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http://127.0.0.1:*; object-src 'none'; base-uri 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http://127.0.0.1:*; media-src 'self' file: blob: data: http://127.0.0.1:* https:; object-src 'none'; base-uri 'none';">
   <title data-i18n="PlayerOverlayPulseDeckPlayer"></title>
   <link rel="stylesheet" href="overlay.css">
 </head>
@@ -59,6 +59,8 @@
   </main>
   <script src="../shared/i18n.js"></script>
   <script src="../i18n/dom.js"></script>
+  <script src="../shared/cover-media.js"></script>
+  <script src="../renderer/cover-media.js"></script>
   <script src="../renderer/icons.js"></script>
   <script src="overlay.js"></script>
 </body>

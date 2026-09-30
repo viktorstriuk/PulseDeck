@@ -2,7 +2,7 @@
 (() => {
 const I18n = window.PulseI18n;
 'use strict';
-// Lyrics own neither playback nor a second media element. currentTime is authoritative.
+// Lyrics own neither song playback nor a second audio element. currentTime is authoritative.
 window.PulseLyricsView=class PulseLyricsView{
   constructor({api,audio,getTrack,notify,requestPasswords,onOpen=()=>{},togglePlay,seek}){
     Object.assign(this,{api,audio,getTrack,notify,requestPasswords,onOpen,togglePlay,seek});
@@ -129,48 +129,57 @@ window.PulseLyricsView=class PulseLyricsView{
   async confirm(title,text){if(this.confirmResolve)this.finishConfirm(false);I18n.setOwnedText(this.$('lyricsConfirmTitle'),title);I18n.setOwnedText(this.$('lyricsConfirmText'),text);this.$('lyricsConfirm').showModal();return new Promise(resolve=>this.confirmResolve=resolve);}
   finishConfirm(value){const resolve=this.confirmResolve;this.confirmResolve=null;this.$('lyricsConfirm').close();resolve?.(value);}
   toggle(){this.opened?this.close():this.open();}
-  open(){getSelection()?.removeAllRanges();this.onOpen();this.opened=true;document.body.classList.add('lyrics-open');this.view.classList.remove('hidden');this.$('lyricsBtn').classList.add('active');this.$('lyricsBtn').setAttribute('aria-pressed','true');this.trackChanged(this.getTrack(),true);this.scroller.focus({preventScroll:true});this.immersive.open();}
-  close(){this.immersive.stop();this.backdrop.clear();this.opened=false;document.body.classList.remove('lyrics-open','lyrics-focus');this.view.classList.add('hidden');this.$('lyricsBtn').classList.remove('active');this.$('lyricsBtn').setAttribute('aria-pressed','false');cancelAnimationFrame(this.frame);this.frame=0;this.closeDialogs(true);if(this.track?.vaultKey)this.clearData();this.$('lyricsBtn').focus({preventScroll:true});}
-  clearData(){this.backdrop.clear();this.epoch++;this.coverEpoch++;this.searchGeneration++;this.doc=null;this.timing=this.E.preferences();this.revision=null;this.recordingId='';this.rows=[];this.nodes=[];this.active=[];this.lines.replaceChildren();getSelection()?.removeAllRanges();this.coverReady=false;this.$('lyricsCover').removeAttribute('src');this.$('lyricsInput').value='';this.$('lyricsTimingRows').replaceChildren();this.$('lyricsSearchResults').replaceChildren();this.$('lyricsSearchArtist').value='';this.$('lyricsSearchSong').value='';I18n.setText(this.$('lyricsEditorTitle'),()=>(I18n.t("LyricsLyricsEditor")));this.$('lyricsImportSummary').textContent='';this.$('lyricsEditorError').textContent='';this.editDraft=null;this.wordDrafts.clear();this.wordSelection=null;this.timingFields=[];this.incoming=null;this.settingsBackup=null;this.searchResults=[];}
-  clearPrivate(){this.closeDialogs(true);this.clearData();this.track=null;I18n.setText(this.$('lyricsTitle'),()=>(I18n.t("LyricsProtectedPlaylistLocked")));I18n.setText(this.$('lyricsArtist'),()=>(I18n.t("LyricsPULSEDECKLYRICS")));this.theme=this.L.theme();this.paintTheme();this.empty(I18n.t("LyricsPlaylistLocked"),I18n.t("LyricsUnlockTheProtectedPlaylistAndSelectTheSong"));}
+  open(){getSelection()?.removeAllRanges();this.onOpen();this.opened=true;this.$('lyricsBtn').classList.add('active');this.$('lyricsBtn').setAttribute('aria-pressed','true');this.$('lyricsBtn').setAttribute('aria-busy','true');this.trackChanged(this.getTrack(),true);}
+  reveal(epoch){if(!this.opened||epoch!==this.epoch)return;document.body.classList.add('lyrics-open');this.view.classList.remove('hidden');this.$('lyricsBtn').removeAttribute('aria-busy');this.scroller.focus({preventScroll:true});this.immersive.open();}
+  close(){this.$('lyricsBtn').removeAttribute('aria-busy');this.immersive.stop();this.backdrop.clear();this.opened=false;document.body.classList.remove('lyrics-open','lyrics-focus');this.view.classList.add('hidden');this.$('lyricsBtn').classList.remove('active');this.$('lyricsBtn').setAttribute('aria-pressed','false');cancelAnimationFrame(this.frame);this.frame=0;this.closeDialogs(true);if(this.track?.vaultKey)this.clearData();this.$('lyricsBtn').focus({preventScroll:true});}
+  clearData(preserveScene=false){if(!preserveScene)this.backdrop.clear();this.epoch++;this.coverEpoch++;this.searchGeneration++;this.doc=null;this.timing=this.E.preferences();this.revision=null;this.recordingId='';this.rows=[];this.nodes=[];this.active=[];this.lines.replaceChildren();getSelection()?.removeAllRanges();this.coverReady=false;this.coverSource='';this.coverType='';this.$('lyricsCover').removeAttribute('src');this.$('lyricsInput').value='';this.$('lyricsTimingRows').replaceChildren();this.$('lyricsSearchResults').replaceChildren();this.$('lyricsSearchArtist').value='';this.$('lyricsSearchSong').value='';I18n.setText(this.$('lyricsEditorTitle'),()=>(I18n.t("LyricsLyricsEditor")));this.$('lyricsImportSummary').textContent='';this.$('lyricsEditorError').textContent='';this.editDraft=null;this.wordDrafts.clear();this.wordSelection=null;this.timingFields=[];this.incoming=null;this.settingsBackup=null;this.searchResults=[];}
+  clearPrivate(){this.closeDialogs(true);this.clearData();this.themeLoading=false;this.track=null;I18n.setText(this.$('lyricsTitle'),()=>(I18n.t("LyricsProtectedPlaylistLocked")));I18n.setText(this.$('lyricsArtist'),()=>(I18n.t("LyricsPULSEDECKLYRICS")));this.theme=this.L.theme();const epoch=this.epoch;this.paintTheme().then(()=>this.reveal(epoch));this.empty(I18n.t("LyricsPlaylistLocked"),I18n.t("LyricsUnlockTheProtectedPlaylistAndSelectTheSong"));}
   closeDialogs(force=false){this.finishConfirm(false);this.finishExportChoice(null);this.searchGeneration++;for(const dialog of this.dialogs.querySelectorAll('dialog[open]'))dialog.close();if(force){this.settingsBackup=null;this.editOriginal=null;this.editDraft=null;this.wordDrafts.clear();this.wordSelection=null;this.timingFields=[];this.$('lyricsTimingRows').replaceChildren();this.$('lyricsInput').value='';this.$('lyricsSearchResults').replaceChildren();}}
   trackChanged(track,force=false){
     const changed=(track?.rel||'')!==(this.track?.rel||'');
     if(!changed&&!force){const coverChanged=track?.coverUrl!==this.track?.coverUrl||track?.mtime!==this.track?.mtime;if(track)this.track={...track};if(coverChanged&&this.opened)this.loadCover(track,this.epoch);this.tick();return;}
-    this.closeDialogs(true);this.clearData();this.track=track?{...track}:null;this.themeTouched=false;this.loading=false;this.theme=this.L.theme();this.average=[48,32,54];this.coverPalette=null;this.follow=true;this.scroller.scrollTop=0;
+    this.themeLoading=true;this.closeDialogs(true);this.clearData(this.opened&&!this.view.classList.contains('hidden'));this.track=track?{...track}:null;this.themeTouched=false;this.loading=false;this.theme=this.L.theme();this.average=[48,32,54];this.coverPalette=null;this.follow=true;this.scroller.scrollTop=0;
     I18n.setText(this.$('lyricsTitle'),()=>(track?.title||I18n.t("LyricsTitle")));I18n.setText(this.$('lyricsArtist'),()=>track ? window.PulseLibrary.trackArtist(track) : I18n.t('AppName'));this.$('lyricsStatus').textContent='';this.updateTools();this.paintTheme();
-    if(!this.opened)return;
-    if(!track){this.empty(I18n.t("LyricsSelectASong"),I18n.t("LyricsOpenYourLibraryAndPlayATrackIts"));return;}
+    if(!this.opened){this.themeLoading=false;return;}
+    if(!track){this.themeLoading=false;this.paintTheme();this.reveal(this.epoch);this.empty(I18n.t("LyricsSelectASong"),I18n.t("LyricsOpenYourLibraryAndPlayATrackIts"));return;}
     this.loading=true;this.empty(I18n.t("LyricsOpeningLyrics"),I18n.t("LyricsLookingForSavedTimingsAnAdjacentFileOr"));this.updateTools();
-    const epoch=this.epoch;this.loadCover(track,epoch);
-    this.saveTail.catch(()=>{}).then(()=>this.command({type:'get',rel:track.rel})).then(result=>{
+    const epoch=this.epoch;
+    // Metadata and cover decoding run in parallel, but neither paints a temporary
+    // default palette while the saved per-track theme is still being read.
+    const cover=this.loadCover(track,epoch);
+    this.saveTail.catch(()=>{}).then(()=>this.command({type:'get',rel:track.rel})).then(async result=>{
+      // A saved solid/manual gradient has no dependency on remote artwork.
+      // Cover mode and cover-derived palettes still wait for the decoder.
+      if(!result.theme||result.theme.mode==='cover'||result.theme.paletteSource==='cover')await cover;
       if(epoch!==this.epoch||!this.opened)return;
       this.loading=false;this.doc=result.doc;this.timing=this.E.preferences(result.doc||result.timing);this.revision=result.revision||null;this.recordingId=result.recordingId;
       this.theme=this.L.theme(result.theme?{...result.theme,paletteSource:result.theme.paletteSource||'manual'}:{background:this.coverPalette?.[0],gradientColors:this.coverPalette||undefined,paletteSource:'cover'});this.themeTouched=this.theme.paletteSource==='manual';if(!this.themeTouched&&this.coverPalette){this.theme.background=this.coverPalette[0];this.theme.gradientColors=[...this.coverPalette];}this.revisions?.set(track.rel,this.revision);
-      this.origin=result.origin||'';this.paintTheme();this.render();this.startClock();
+      this.origin=result.origin||'';this.themeLoading=false;await this.paintTheme();if(epoch!==this.epoch||!this.opened)return;this.reveal(epoch);this.render();this.startClock();
       if(this.L.notes(result.doc).length)this.notify('info',I18n.t("LyricsTimingNotes"),this.L.notes(result.doc).join(' '),8000);
       if(result.warnings?.length)this.notify('info',I18n.t("LyricsCheckLocalLyrics"),result.warnings.join(' '),8000);
       if(this.doc&&!this.doc.lines.some(l=>l.startMs!==null))this.notify('info',I18n.t("LyricsLyricsAreNotSynchronisedToTheMusic"),I18n.t("LyricsYouCanScrollThemFreely"),3500);
-    }).catch(e=>{if(epoch!==this.epoch)return;this.loading=false;this.empty(I18n.t("LyricsCouldNotOpenLyrics"),I18n.errorMessage(e)||String(e));this.updateTools();});
+    }).catch(async e=>{if(epoch!==this.epoch||!this.opened)return;this.loading=false;this.themeLoading=false;await this.paintTheme();this.reveal(epoch);this.empty(I18n.t("LyricsCouldNotOpenLyrics"),I18n.errorMessage(e)||String(e));this.updateTools();});
   }
   empty(title,text){if(!this.loading)this.immersive.activity();this.$('lyricsEmpty').classList.remove('hidden');I18n.setOwnedText(this.$('lyricsEmptyTitle'),title);I18n.setOwnedText(this.$('lyricsEmptyText'),text);this.scroller.classList.add('hidden');this.$('lyricsResync').classList.add('hidden');this.updateTools();}
   durationMs(){return Math.round((Number.isFinite(this.audio.duration)&&this.audio.duration>0?this.audio.duration:this.track?.duration||0)*1000);}
   async loadCover(track,epoch){
-    const coverEpoch=++this.coverEpoch;this.coverReady=false;const raw=track.coverUrl;if(!raw){this.$('lyricsCover').removeAttribute('src');this.paintTheme();return;}
-    try{const u=new URL(raw,document.baseURI);if(!['https:','file:','blob:','data:'].includes(u.protocol)&&!(u.protocol==='http:'&&u.hostname==='127.0.0.1'))return;
-      const img=new Image();if(u.protocol==='http:'||u.protocol==='https:')img.crossOrigin='anonymous';
-      img.src=u.href;await img.decode();if(epoch!==this.epoch||coverEpoch!==this.coverEpoch||!img.naturalWidth)return;
+    const coverEpoch=++this.coverEpoch;this.coverReady=false;const raw=track.coverUrl;if(!raw){this.$('lyricsCover').removeAttribute('src');this.coverSource='';this.coverType='';this.paintTheme();return;}
+    let img;try{const u=new URL(raw,document.baseURI);if(!['https:','file:','blob:','data:'].includes(u.protocol)&&!(u.protocol==='http:'&&u.hostname==='127.0.0.1'))return;
+      const video=window.PulseCoverMedia.isVideo(u.href,track.coverType);img=document.createElement(video?'video':'img');if(u.protocol==='http:'||u.protocol==='https:')img.crossOrigin='anonymous';
+      if(video){img.muted=true;img.preload='auto';}img.src=u.href;await window.PulseCoverMedia.ready(img);if(epoch!==this.epoch||coverEpoch!==this.coverEpoch||!(img.naturalWidth||img.videoWidth)){img.pause?.();img.removeAttribute('src');return;}
       let average=[48,32,54],colors;try{const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,64,64);const result=this.C.palette(ctx.getImageData(0,0,64,64).data);average=result.average;colors=result.colors;}catch{}
-      this.average=average;this.coverPalette=colors;this.coverReady=true;this.$('lyricsCover').src=u.href;
+      this.average=average;this.coverPalette=colors;this.coverReady=true;this.coverSource=u.href;this.coverType=track.coverType||'';if(!video)this.$('lyricsCover').src=u.href;else this.$('lyricsCover').removeAttribute('src');img.pause?.();img.removeAttribute('src');
       if(this.theme.paletteSource!=='manual'&&colors)this.theme=this.L.theme({...this.theme,background:colors[0],gradientColors:colors,paletteSource:'cover'});this.paintTheme();
-    }catch{if(epoch===this.epoch&&coverEpoch===this.coverEpoch){this.coverReady=false;this.$('lyricsCover').removeAttribute('src');this.paintTheme();}}
+    }catch{if(epoch===this.epoch&&coverEpoch===this.coverEpoch){this.coverReady=false;this.$('lyricsCover').removeAttribute('src');this.paintTheme();}}finally{img?.pause?.();img?.removeAttribute('src');}
   }
   paintTheme(){
+    if(this.themeLoading)return Promise.resolve(false);
+    let ready=Promise.resolve(true);
     const scene=this.C.scene(this.theme,{hasCover:this.coverReady,average:this.average});this.scene=scene;
     const bg=scene.mode==='gradient'?`linear-gradient(${this.theme.gradientAngle}deg in srgb, ${this.theme.gradientColors.join(',')})`:scene.base;
     this.view.style.setProperty('--ly-base',scene.base);this.view.style.setProperty('--ly-background',bg);this.view.style.setProperty('--ly-text',scene.text);this.view.style.setProperty('--ly-active',scene.active);this.view.style.setProperty('--ly-scrim',scene.tint);this.view.style.setProperty('--ly-scrim-alpha',String(scene.scrim));this.view.style.setProperty('--ly-scale',this.theme.fontScale/100);this.view.dataset.background=scene.mode;this.view.dataset.foreground=scene.active==='#000000'?'black':'white';
     this.$('lyricsCover').style.opacity=scene.coverOpacity||0;
-    if(this.opened)this.backdrop.set({base:scene.base,background:bg,tint:scene.tint,scrim:scene.scrim,coverOpacity:scene.coverOpacity||0,cover:scene.mode==='cover'&&this.coverReady?this.$('lyricsCover').src:''});
+    if(this.opened)ready=this.backdrop.set({base:scene.base,background:bg,tint:scene.tint,scrim:scene.scrim,coverOpacity:scene.coverOpacity||0,cover:scene.mode==='cover'&&this.coverReady?this.coverSource:'',coverType:this.coverType});
     this.view.dataset.contrast=scene.minContrast.toFixed(3);this.updateTools();
     if(this.$('lyricsSettings').open){
       const p=this.$('lyricsThemePreview');p.style.background=scene.mode==='cover'?scene.base:`linear-gradient(${scene.scrim?'0deg':'135deg'},${scene.tint+'00'},${scene.tint+'00'}), ${bg}`;
@@ -182,6 +191,7 @@ window.PulseLyricsView=class PulseLyricsView{
       I18n.setText(this.$('lyricsContrastInfo'),()=>(I18n.t("LyricsMinimumEstimatedContrast", {value1:(scene.minContrast.toFixed(2)),value2:(scene.minContrast<4.5?I18n.msg("LyricsLowReadabilityEnableAutomaticCorrection"):scene.mode==='cover'?I18n.msg("LyricsBackdropAlsoAccountsForBlackAndWhiteCover"):'')})));
       I18n.setText(this.$('lyricsOffsetValue'),()=>(I18n.t('SecondsValue',{value:I18n.number((this.doc?.offsetMs??this.timing.offsetMs)/1000,{minimumFractionDigits:2,maximumFractionDigits:2})})));
     }
+    return ready;
   }
   modeLabel(mode){return {solid:I18n.t("LyricsSolidColour"),gradient:I18n.t("LyricsGradient"),cover:I18n.t("LyricsCover")}[mode]||I18n.t("LyricsGradient");}
   updateTools(){

@@ -97,7 +97,7 @@ class VaultStore{
       const audioToken=this.issue(s,entry,'audio'),coverToken=entry.cover?this.issue(s,entry,'cover'):'';
       const rel=`vault:${s.d.id}:${entry.id}`;
       tracks.push({...copy(entry.meta),id:`v-${s.d.id}-${entry.id}`,rel,vaultKey:key,vaultId:s.d.id,
-        publicCopy:!!exported,favorite:key==='favorite'||(!!exported&&(this.settings().favorites||[]).includes(L.token(exported.rel))),coverUrl:coverToken?`http://127.0.0.1:${port}/vault/${coverToken}`:'',
+        publicCopy:!!exported,favorite:key==='favorite'||(!!exported&&(this.settings().favorites||[]).includes(L.token(exported.rel))),coverType:entry.coverType||'',coverUrl:coverToken?`http://127.0.0.1:${port}/vault/${coverToken}`:'',
         audioUrl:`http://127.0.0.1:${port}/vault/${audioToken}`});
     }
     return {locked:false,tracks,order:s.manifest.order||null,archived:s.manifest.archived?.length||0,groupSize:this.activeGroup?Object.keys(this.index.groups[this.activeGroup]?.members||{}).length:1};
@@ -179,7 +179,7 @@ class VaultStore{
         const coverFile=fileURLToPath(track.coverUrl),cid=random();
         try{
           entry.cover=await run('encryptFile',coverFile,this.file(d,`${cid}.pda`),cid);
-          entry.coverType=path.extname(coverFile).toLowerCase()==='.png'?'image/png':'image/jpeg';entry.coverSource=coverFile;
+          entry.coverType=require('../shared/cover-media').typeOf(coverFile,track.coverType)||'image/jpeg';entry.coverSource=coverFile;
           this.index.objects[cid]={file:this.relative(this.file(d,`${cid}.pda`)),refs:[d.id]};
         }catch{warnings.push(I18n.t("VaultCouldNotSaveASeparateCoverForOne"));}
       }
@@ -238,8 +238,8 @@ class VaultStore{
       // Clear output is intentional and explicitly confirmed; failed sidecar write
       // does not delete ciphertext or destroy the only recoverable source.
       let coverPath='';
-      if(entry.cover&&this.index.objects[entry.cover.id]){coverPath=this.full(path.basename(rel,path.extname(rel))+'.'+random().slice(0,6)+(entry.coverType==='image/png'?'.png':'.jpg'));await run('decryptFile',this.full(this.index.objects[entry.cover.id].file),coverPath,entry.cover);}
-      await C.durableJson(this.full(rel+'.pulse.json'),{coverPath,title:entry.meta.title,artist:entry.meta.artist,album:entry.meta.album,genre:entry.meta.genre,duration:entry.meta.duration,sourceUrl:entry.meta.sourceUrl,downloaded:entry.meta.downloaded,_pulseTrackId:entry.meta.id,_pulseAddedAt:entry.meta.addedAt});
+      if(entry.cover&&this.index.objects[entry.cover.id]){coverPath=this.full(path.basename(rel,path.extname(rel))+'.'+random().slice(0,6)+('.'+require('../shared/cover-media').extension(entry.coverType||'image/jpeg')));await run('decryptFile',this.full(this.index.objects[entry.cover.id].file),coverPath,entry.cover);}
+      await C.durableJson(this.full(rel+'.pulse.json'),{coverPath,coverType:entry.coverType,title:entry.meta.title,artist:entry.meta.artist,album:entry.meta.album,genre:entry.meta.genre,duration:entry.meta.duration,sourceUrl:entry.meta.sourceUrl,downloaded:entry.meta.downloaded,_pulseTrackId:entry.meta.id,_pulseAddedAt:entry.meta.addedAt});
       if(this.lyricsBridge)await this.lyricsBridge.exportPublic(entry);
       this.index.publicRefs[entry.id]={rel};await this.persist();
       await fsp.unlink(this.full(object.file));delete this.index.objects[entry.blob.id];await this.persist();rels.push(rel);

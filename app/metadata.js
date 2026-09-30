@@ -467,6 +467,7 @@ async function findLocalCover(filePath) {
   const dir = path.dirname(filePath);
   const stem = path.basename(filePath, path.extname(filePath));
   const names = [
+    `${stem}.gif`, 'cover.gif', 'folder.gif', 'front.gif',
     `${stem}.jpg`, `${stem}.jpeg`, `${stem}.png`, `${stem}.webp`, `${stem}.avif`,
     'cover.jpg', 'cover.jpeg', 'cover.png', 'cover.webp', 'cover.avif',
     'folder.jpg', 'folder.jpeg', 'folder.png', 'folder.webp', 'folder.avif',
@@ -476,7 +477,7 @@ async function findLocalCover(filePath) {
     const candidate = path.join(dir, name);
     try {
       const stat = await fsp.stat(candidate);
-      if (stat.isFile() && stat.size >= 64 && stat.size <= 20 * 1024 * 1024) return candidate;
+      if (stat.isFile() && stat.size > 0) return candidate;
     } catch {}
   }
   return '';

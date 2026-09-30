@@ -1,13 +1,13 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),{EventEmitter}=require('node:events');
-const S=require('./security'),T=require('./transport');
+const S=require('./security'),T=require('./transport'),Interval=require('../shared/update-interval');
 function atomic(file,value){fs.mkdirSync(path.dirname(file),{recursive:true});const temp=file+'.tmp';fs.writeFileSync(temp,JSON.stringify(value,null,2),{mode:0o600});fs.renameSync(temp,file);}
 function read(file,fallback={}){try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}}
 class UpdateManager extends EventEmitter {
   constructor({config,current,profile,cache,platform=process.platform,arch=process.arch,transport=T,clock=Date.now,guard=async()=>[],install=async()=>{throw S.fail('UPDATE_INSTALL_UNAVAILABLE');}}) {
     super();Object.assign(this,{config,current,profile,cache,platform,arch,transport,clock,guard,install});
     fs.mkdirSync(cache,{recursive:true});this.file=path.join(profile,'updates.json');const stored=read(this.file);
-    this.prefs={automatic:stored.automatic!==false,prerelease:stored.prerelease===true,components:stored.components!==false,lastCheck:Number(stored.lastCheck)||0,lastAttempt:Number(stored.lastAttempt)||0};
+    this.prefs={...Interval.normalize(stored,(Number(config.checkIntervalHours)||12)*60),automatic:stored.automatic!==false,prerelease:stored.prerelease===true,components:stored.components!==false,lastCheck:Number(stored.lastCheck)||0,lastAttempt:Math.max(0,Math.min(this.clock(),Number(stored.lastAttempt)||0))};
     this.channel=this.prefs.prerelease?'beta':'stable';this.controller=null;this.checkPromise=null;this.timer=null;this.manifest=null;this.envelope=null;this.failures=0;this.downloadPromise=null;this.installing=false;
     this.state={phase:S.ready(config)?'idle':'unconfigured',current,available:'',progress:0,error:'',lastCheck:this.prefs.lastCheck,configured:S.ready(config),repository:S.repoURL(config),channel:this.channel,prefs:{...this.prefs},pendingMode:stored.pending?.mode||''};
     this.pending=stored.pending||null;
@@ -18,19 +18,20 @@ class UpdateManager extends EventEmitter {
   configure(patch={}){
     if(this.controller||this.installing)throw S.fail('UPDATE_BUSY');
     for(const k of ['automatic','prerelease','components'])if(typeof patch[k]==='boolean')this.prefs[k]=patch[k];
+    if(Object.hasOwn(patch,'intervalMinutes')||Object.hasOwn(patch,'intervalUnit'))Object.assign(this.prefs,Interval.normalize({...this.prefs,...patch},this.prefs.intervalMinutes));
     const channel=this.prefs.prerelease?'beta':'stable';
     if(channel!==this.channel){this.channel=channel;this.manifest=null;this.envelope=null;this.pending=null;this.emitState({phase:S.ready(this.config)?'idle':'unconfigured',available:'',notes:{},pendingMode:'',channel});}
     this.persist();this.schedule();return this.emitState();
   }
-  schedule(){clearTimeout(this.timer);if(!this.prefs.automatic||!S.ready(this.config))return;
-    const interval=(this.config.checkIntervalHours||12)*3600000;const backoff=Math.min(4,Math.max(1,2**Math.min(this.failures,2)));const delay=Math.max(15000,interval*backoff-(this.clock()-this.prefs.lastAttempt));
-    this.timer=setTimeout(()=>{this.check(false).catch(()=>{}).finally(()=>this.schedule());},delay);this.timer.unref?.();
+  schedule(){clearTimeout(this.timer);this.timer=null;if(this.closed||!this.prefs.automatic||!S.ready(this.config))return;
+    const interval=this.prefs.intervalMinutes*60000;const backoff=Math.min(4,Math.max(1,2**Math.min(this.failures,2)));const delay=Math.max(15000,interval*backoff-(this.clock()-this.prefs.lastAttempt));
+    this.timer=setTimeout(()=>{this.check(false).catch(()=>{}).finally(()=>this.schedule());},Math.min(Interval.MAX_TIMEOUT,delay));this.timer.unref?.();
   }
   async check(manual=true){
     if(!S.ready(this.config))return this.emitState({phase:'unconfigured',error:'',configured:false});
     if(this.platform!=='win32'||this.arch!=='x64')return this.emitState({phase:'unsupported',error:'UPDATE_UNSUPPORTED'});
     if(this.pending||this.installing)return this.snapshot();if(this.controller && !this.checkPromise)return this.snapshot();if(this.checkPromise)return this.checkPromise;
-    if(!manual && (!this.prefs.automatic||this.clock()-this.prefs.lastAttempt<(this.config.checkIntervalHours||12)*3600000))return this.snapshot();
+    if(!manual && (!this.prefs.automatic||this.clock()-this.prefs.lastAttempt<this.prefs.intervalMinutes*60000*Math.min(4,Math.max(1,2**Math.min(this.failures,2)))))return this.snapshot();
     // Explicit requests are coalesced and rate-limited as well, never flood the GitHub API.
     if(manual && this.clock()-this.prefs.lastAttempt<30000 && this.prefs.lastAttempt)return this.snapshot();
     this.prefs.lastAttempt=this.clock();this.persist();this.controller=new AbortController();this.emitState({phase:'checking',error:''});
@@ -41,7 +42,7 @@ class UpdateManager extends EventEmitter {
         this.prefs.lastCheck=this.clock();this.failures=0;this.persist();this.emit('checked',{channel:this.channel});this.manifest=m;this.envelope=Buffer.from(envelope).toString('base64');
         return this.emitState({phase:m.newer?'available':'current',available:m.newer?m.version:'',notes:m.notes,lastCheck:this.prefs.lastCheck,error:''});
       }catch(e){this.failures++;return this.emitState({phase:e.name==='AbortError'?'idle':'error',error:e.name==='AbortError'?'':e.code||'UPDATE_NETWORK_ERROR'});}
-      finally{this.controller=null;this.checkPromise=null;}
+      finally{this.controller=null;this.checkPromise=null;this.schedule();}
     })();return this.checkPromise;
   }
   async download(mode='ready'){
@@ -90,6 +91,6 @@ class UpdateManager extends EventEmitter {
     finally{this.installing=false;}
   }
   async onStartup({failed=false}={}){await this.restore();if(failed&&this.pending){this.pending.mode='ready';this.persist();this.emitState({phase:'ready',pendingMode:'ready',error:'UPDATE_INSTALL_FAILED'});}if(!failed&&this.pending?.mode==='next-launch')await this.apply({startup:true});this.schedule();return this.snapshot();}
-  close(){clearTimeout(this.timer);this.controller?.abort();}
+  close(){this.closed=true;clearTimeout(this.timer);this.controller?.abort();}
 }
 module.exports={UpdateManager,atomic,read};

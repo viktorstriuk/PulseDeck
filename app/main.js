@@ -37,14 +37,23 @@ function getSearchService(){
 let trackEditor=null, coverSearch=null, libraryImporter=null, libraryEnrichment=null;
 function emitLibraryProgress(payload){if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('library:progress',payload);}
 function getTrackEditor(){if(!trackEditor){const {TrackEditor}=require('./library/editor');trackEditor=new TrackEditor({music:MUSIC_DIR,covers:COVER_DIR,list:()=>scanLibrary(),vault:getVault,notify:notifyLibraryChanged});}return trackEditor;}
-function getCoverSearch(){if(!coverSearch)coverSearch=require('./online/covers').createCovers({search:getSearchService(),fetch:(url,options)=>net.fetch(url,options),version:APP_VERSION});return coverSearch;}
-const normalizeCover=buffer=>require('./library/images').sanitizeImage(buffer,nativeImage);
+function getCoverSearch(){if(!coverSearch)coverSearch=require('./online/covers').createCovers({search:getSearchService(),fetch:(url,options)=>net.fetch(url,options),version:APP_VERSION,progress:emitLibraryProgress});return coverSearch;}
+async function normalizeCover(buffer){
+  const media=require('./library/images').describe(buffer);if(media.video)throw I18n.error('CoverInvalidImage');
+  await fsp.mkdir(COVER_DIR,{recursive:true});const temporary=path.join(COVER_DIR,'.validate-'+crypto.randomUUID()+'.'+media.ext);
+  try{await fsp.writeFile(temporary,buffer,{flag:'wx',mode:0o600});await inspectCoverFile(temporary);return buffer;}
+  finally{await fsp.unlink(temporary).catch(()=>{});}
+}
 async function importDuration(file,relative=false){
   const exe=getComponents().resolve('ffprobe.exe');if(!exe)return 0;
   if(relative){if(file.startsWith('vault:'))return 0;file=resolveMusicRelative(file);}
   const result=await runProcess(exe,['-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',file],{stallTimeoutMs:5000,totalTimeoutMs:7000});const duration=Number(result.stdout.trim());return Number.isFinite(duration)&&duration>0&&duration<7*86400?duration:0;
 }
-async function storeImportedCover(file){await require('./library/editor').regular(file,16*1024*1024);const buffer=normalizeCover(await fsp.readFile(file)),digest=crypto.createHash('sha256').update(buffer).digest('hex'),target=path.join(COVER_DIR,'custom-'+digest+'.png');await fsp.writeFile(target,buffer,{flag:'wx'}).catch(e=>{if(e.code!=='EEXIST')throw e;});return target;}
+async function inspectCoverFile(file){
+  return require('./library/images').inspectFile(file,nativeImage,{validateMedia:(source,media)=>require('./library/media-probe').probeMedia(source,media,BrowserWindow)});
+}
+async function storeImportedCover(file){return require('./library/images').storeFile(await inspectCoverFile(file),COVER_DIR);}
+async function setCoverFromFile(rel,file,revision){await getTrackEditor().resolve(rel);const coverFile=await inspectCoverFile(file);return getTrackEditor().update(rel,{}, {coverFile,revision});}
 function getImporter(){if(!libraryImporter){const {Importer}=require('./library/importer');libraryImporter=new Importer({music:MUSIC_DIR,staging:path.join(DATA_DIR,'import-staging'),storeCover:storeImportedCover,publish:publishMusicFile,duration:importDuration,notify:notifyLibraryChanged,progress:emitLibraryProgress});}return libraryImporter;}
 function getEnrichment(){if(!libraryEnrichment){const {Enrichment}=require('./library/enrichment');libraryEnrichment=new Enrichment({editor:getTrackEditor(),lyrics:getLyrics,vault:getVault,covers:getCoverSearch(),importer:getImporter(),sanitize:normalizeCover,duration:importDuration,preferences:()=>getSettings().onlineSearch,notify:notifyLibraryChanged,progress:emitLibraryProgress});}return libraryEnrichment;}
 async function libraryCommand(c={}){
@@ -52,10 +61,10 @@ async function libraryCommand(c={}){
   switch(c.type){
     case 'metadata':return getTrackEditor().info(c.rel);
     case 'edit':return getTrackEditor().update(c.rel,c.patch,{revision:c.revision});
-    case 'cover-search':{if(c.consent!==true)throw I18n.error('EnrichConsent');await getTrackEditor().resolve(c.rel);return getCoverSearch().find({...c,prefs:getSettings().onlineSearch});}
+    case 'cover-search':{if(c.consent!==true)throw I18n.error('EnrichConsent');const {track}=await getTrackEditor().resolve(c.rel);return getCoverSearch().find({...c,track,prefs:getSettings().onlineSearch});}
     case 'cover-cancel':return getCoverSearch().cancel(c.requestId);
-    case 'cover-select':{await getTrackEditor().resolve(c.rel);const bytes=await getCoverSearch().download(c.id);return getTrackEditor().update(c.rel,{}, {coverBuffer:normalizeCover(bytes),revision:c.revision});}
-    case 'cover-upload':{await getTrackEditor().resolve(c.rel);const choice=await dialog.showOpenDialog(mainWindow,{title:I18n.t('CoverUpload'),properties:['openFile'],filters:[{name:I18n.t('CoverImages'),extensions:['png','jpg','jpeg','webp']}]});if(choice.canceled||!choice.filePaths?.length)return {ok:true,cancelled:true};await require('./library/editor').regular(choice.filePaths[0],16*1024*1024);const bytes=await fsp.readFile(choice.filePaths[0]);return getTrackEditor().update(c.rel,{}, {coverBuffer:normalizeCover(bytes),revision:c.revision});}
+    case 'cover-select':{await getTrackEditor().resolve(c.rel);const bytes=await getCoverSearch().download(c.id);return getTrackEditor().update(c.rel,{}, {coverBuffer:await normalizeCover(bytes),revision:c.revision});}
+    case 'cover-upload':{await getTrackEditor().resolve(c.rel);const choice=await dialog.showOpenDialog(mainWindow,{title:I18n.t('CoverUpload'),properties:['openFile'],filters:[{name:I18n.t('CoverImages'),extensions:Object.keys(require('./shared/cover-media').TYPES)}]});if(choice.canceled||!choice.filePaths?.length)return {ok:true,cancelled:true};return setCoverFromFile(c.rel,choice.filePaths[0],c.revision);}
     case 'capabilities':return getEnrichment().capabilities(c.rels,{requestId:c.requestId});
     case 'cancel-capabilities':return getEnrichment().cancelCapabilities(c.requestId);
     case 'batch-start':return getEnrichment().start(c);
@@ -621,6 +630,7 @@ async function scanLibrary(force = false) {
           genre: meta.genre || '',
           duration: Number(meta.duration) || 0,
           coverUrl: meta.coverPath ? pathToFileURL(meta.coverPath).href : '',
+          coverType: require('./shared/cover-media').typeOf(meta.coverPath,meta.coverType),
           audioUrl: pathToFileURL(filePath).href,
           sourceUrl: meta.sourceUrl || '',
           sourceProvider: (() => {
@@ -2243,6 +2253,7 @@ function registerIpc() {
   const fromMain=event=>{
     if(event.sender!==mainWindow?.webContents || (event.senderFrame && event.sender.mainFrame && event.senderFrame!==event.sender.mainFrame))throw I18n.error('UPDATE_UNTRUSTED_WINDOW');
   };
+  handleLocalized('library:cover-drop',(event,file,rel,revision)=>{fromMain(event);return setCoverFromFile(rel,file,revision);});
   handleLocalized('library:prepare-drop',(event,paths,requestId)=>{fromMain(event);return getImporter().prepare(paths,{requestId});});
   handleLocalized('library:command',(event,command)=>{fromMain(event);return libraryCommand(command);});
   handleLocalized('online:command',(event,command)=>{fromMain(event);return getSearchService().command(command);});

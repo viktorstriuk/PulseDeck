@@ -120,3 +120,18 @@
 @media(max-width:680px){.about-author{grid-template-columns:1fr}.author-art{width:86px;height:86px;top:0}.author-art img{width:110px;height:110px}}
 
 .component-directory{font-size:10px;color:var(--muted);overflow-wrap:anywhere;margin:0 0 12px;user-select:text}
+
+/* The interval belongs to automatic application checks, not component updates. */
+.updates-auto-card{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.updates-auto-card>.player-switch-card{border:0;border-radius:0}
+.updates-interval{display:grid;grid-template-columns:auto minmax(0,240px);align-items:center;gap:10px 16px;padding:0 18px 16px 56px;font-size:12px}
+.updates-interval[hidden]{display:none}
+.updates-interval-fields{display:flex;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.updates-interval-fields:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.updates-interval-fields input,.updates-interval-fields select{min-width:0;padding:10px 12px;border:0;background:transparent;color:var(--text);font:inherit;outline:none}
+.updates-interval-fields input{width:80px;flex:1;font-variant-numeric:tabular-nums}
+.updates-interval-fields select{border-left:1px solid var(--line);cursor:pointer}
+.updates-interval-fields option{background:var(--surface);color:var(--text)}
+.updates-interval>small{grid-column:1/-1;color:var(--muted);line-height:1.55}
+.scissors-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+@media(max-width:650px){.updates-interval{padding-left:18px;grid-template-columns:1fr}.updates-interval-fields{max-width:100%}}

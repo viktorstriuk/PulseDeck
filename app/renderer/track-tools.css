@@ -70,3 +70,14 @@ html[data-input-modality=keyboard] .import-option:has(input:focus-visible){outli
 @keyframes track-tools-in{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:none}}
 @media(max-width:600px){.library-import-dialog{padding:18px}.library-import-heading h2{font-size:18px}.import-question{font-size:14px}.library-drop-overlay strong{font-size:19px}.import-actions{gap:6px}.cover-grid{gap:6px}}
 @media(prefers-reduced-motion:reduce){.track-tools-popover,.library-import-dialog{animation:none}.cover-tile,.import-option,.import-progress::-webkit-progress-value{transition:none}}
+
+/* 2.9.4: visible, persistent search feedback and local artwork drop targets. */
+.cover-drop-hint{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.cover-searching{display:flex!important;align-items:center;gap:10px;padding:11px 12px;border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);border-radius:11px;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--text);font-size:12px;min-height:20px}
+.cover-searching::before{content:'';width:17px;height:17px;flex:0 0 17px;border:2px solid color-mix(in srgb,var(--accent) 22%,transparent);border-top-color:var(--accent);border-right-color:var(--accent);border-radius:50%;animation:cover-search-spin .8s linear infinite}
+.cover-drop-target{outline:2px dashed var(--accent)!important;outline-offset:-3px;background:color-mix(in srgb,var(--accent) 10%,var(--surface))!important}
+.cover-tile-media{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+@keyframes cover-search-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.cover-searching::before{animation:none}}
+
+.cover-picker-footer>button[hidden]{display:none}

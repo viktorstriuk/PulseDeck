@@ -759,7 +759,7 @@ const I18n = window.PulseI18n;
 
   function coverMarkup(track, cls = 'card-cover') {
     const cover = safeUrl(track.coverUrl);
-    return `<div class="cover ${cls} ${cover ? '' : 'placeholder'}">${coverFallbackMarkup()}${cover ? `<img class="cover-img" src="${esc(cover)}" alt="" loading="lazy" decoding="async">` : ''}</div>`;
+    return `<div class="cover ${cls} ${cover ? '' : 'placeholder'}">${coverFallbackMarkup()}${cover ? window.PulseCoverMedia.markup(cover,track.coverType) : ''}</div>`;
   }
 
   function renderGrid() {
@@ -818,7 +818,7 @@ const I18n = window.PulseI18n;
     const view = state.settings.view === 'list' ? 'list' : 'grid';
     lib.className = `library ${view}-view`;
     updateViewButtons();
-    const signature = empty ? `${state.category}|${view}|empty` : !state.filtered.length ? `${view}|none|${state.query}|${state.category}` : `${state.category}|${view}|${state.filtered.map((t) => [t.id,t.title,t.artist,t.album,t.ext,t.coverUrl,Math.round(Number(t.addedAt)||0)].join('\u001f')).join('\u001e')}`;
+    const signature = empty ? `${state.category}|${view}|empty` : !state.filtered.length ? `${view}|none|${state.query}|${state.category}` : `${state.category}|${view}|${state.filtered.map((t) => [t.id,t.title,t.artist,t.album,t.ext,t.coverUrl,t.coverType,Math.round(Number(t.addedAt)||0)].join('\u001f')).join('\u001e')}`;
     if (signature === state.librarySignature) {
       patchTrackVisuals();
       for (const track of state.filtered) { patchFavorite(track); patchDuration(track); }
@@ -1002,7 +1002,7 @@ const I18n = window.PulseI18n;
     if (pc.dataset.coverUrl === url && pc.querySelector('.app-cover-fallback')) return;
     pc.dataset.coverUrl = url;
     pc.classList.toggle('placeholder', !url);
-    pc.innerHTML = `${coverFallbackMarkup()}${url ? `<img class="cover-img" src="${esc(url)}" alt="" decoding="async">` : ''}`;
+    pc.innerHTML = `${coverFallbackMarkup()}${url ? window.PulseCoverMedia.markup(url,track.coverType) : ''}`;
   }
 
   function updatePlayerUI() {
@@ -1091,7 +1091,11 @@ const I18n = window.PulseI18n;
     if (mode === 'track') url = safeUrl(currentTrack()?.coverUrl || '');
     if (mode === 'custom' && state.settings.customBackground) url = await resolveAppearanceRef(state.settings.customBackground);
     if (epoch !== state.backgroundRenderEpoch) return;
-    root.style.setProperty('--library-bg-image', url ? `url("${url.replace(/["\\]/g, '\\$&')}")` : 'none');
+    const video=mode==='track'&&window.PulseCoverMedia.isVideo(url,currentTrack()?.coverType);
+    let backdrop=$('#libraryVideoBackground');
+    if(video&&url){if(!backdrop||backdrop.getAttribute('src')!==url){backdrop?.remove();backdrop=window.PulseCoverMedia.element(url,currentTrack()?.coverType,'library-video-background');backdrop.id='libraryVideoBackground';$('.content').prepend(backdrop);}}
+    else backdrop?.remove();
+    root.style.setProperty('--library-bg-image', !video&&url ? `url("${url.replace(/["\\]/g, '\\$&')}")` : 'none');
     root.classList.toggle('has-library-background', !!url && mode !== 'off');
   }
 
@@ -1390,7 +1394,7 @@ const I18n = window.PulseI18n;
       ${!track.vaultKey?`<button class="context-item" data-menu="reveal">${window.Icon('folder',15)}<span data-i18n="UIShowInFolder">${I18n.h("UIShowInFolder")}</span></button>`:''}
       ${state.category!=='all'||isProtected()?`<button class="context-item" data-menu="remove-current">${window.Icon('minus',15)}<span data-i18n="UIRemoveFrom" data-i18n-args="${I18n.attrArgs({value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}">${I18n.h("UIRemoveFrom", {value1:(categoryByKey(state.category)?.label||I18n.msg("UIPlaylist"))})}</span></button>`:''}
       ${source ? `<button class="context-item" data-menu="source">${window.Icon('external',15)}<span data-i18n="UIOpenSource">${I18n.h("UIOpenSource")}</span></button>` : ''}
-      ${canTrimTrack(track) ? `<button class="context-item" data-menu="trim">${window.Icon('paint',15)}<span data-i18n="UITrimTrack">${I18n.h("UITrimTrack")}</span></button>` : ''}
+      ${canTrimTrack(track) ? `<button class="context-item" data-menu="trim">${window.Icon('scissors',15)}<span data-i18n="UITrimTrack">${I18n.h("UITrimTrack")}</span></button>` : ''}
       <div class="context-sep"></div>
       <button class="context-item danger" data-menu="delete">${window.Icon('trash',15)}<span data-i18n="UIDeleteFile">${I18n.h("UIDeleteFile")}</span></button>`;
     menu.classList.remove('hidden');
@@ -2151,7 +2155,7 @@ const I18n = window.PulseI18n;
       I18n.setText($('#trimTrackDuration'),()=>(duration ? formatTime(duration) : I18n.t("UIDurationUnknown")));
       const cover = safeUrl(prepared.coverUrl);
       $('#trimCover').classList.toggle('placeholder', !cover);
-      $('#trimCover').innerHTML = `${coverFallbackMarkup()}${cover ? `<img class="cover-img" src="${esc(cover)}" alt="" decoding="async">` : ''}`;
+      $('#trimCover').innerHTML = `${coverFallbackMarkup()}${cover ? window.PulseCoverMedia.markup(cover,prepared.coverType) : ''}`;
       $('#trimStart').max = duration || 100;
       $('#trimEnd').max = duration || 100;
       $('#trimStart').disabled = !duration;
@@ -2802,7 +2806,7 @@ const I18n = window.PulseI18n;
 
   function overlaySnapshot() {
     const t=currentTrack();
-    return { title:t ? Library.trackTitle(t) : I18n.t('AppName'), artist:t ? Library.trackArtist(t) : I18n.t('AppTagline'), cover:t?.coverUrl ? safeUrl(t.coverUrl) : '', fallbackCover:state.appIconUrl, playlist:currentPlaylistName(), currentTime:Number(audio.currentTime)||0, duration:Number(audio.duration)||Number(t?.duration)||0, playing:!!t && !audio.paused };
+    return { title:t ? Library.trackTitle(t) : I18n.t('AppName'), artist:t ? Library.trackArtist(t) : I18n.t('AppTagline'), cover:t?.coverUrl ? safeUrl(t.coverUrl) : '', coverType:t?.coverType||'', fallbackCover:state.appIconUrl, playlist:currentPlaylistName(), currentTime:Number(audio.currentTime)||0, duration:Number(audio.duration)||Number(t?.duration)||0, playing:!!t && !audio.paused };
   }
 
   function syncGameOverlayPalette(src='') {
@@ -3177,7 +3181,7 @@ const I18n = window.PulseI18n;
     });
 
     document.addEventListener('load', (e) => {
-      if (!e.target.matches?.('img.cover-img, img.online-thumb')) return;
+      if (!e.target.matches?.('.cover-img, img.online-thumb')) return;
       e.target.classList.add('is-loaded');
       e.target.parentElement?.classList.remove('placeholder');
     }, true);
@@ -3186,7 +3190,7 @@ const I18n = window.PulseI18n;
         if (e.target.src !== defaultAppIconUrl) e.target.src = defaultAppIconUrl;
         return;
       }
-      if (!e.target.matches?.('img.cover-img, img.online-thumb')) return;
+      if (!e.target.matches?.('.cover-img, img.online-thumb')) return;
       const img = e.target;
       const parent = img.parentElement;
       img.remove();

@@ -66,7 +66,7 @@ def playlists(browser):
  check('Local-only artist inference does not grant network consent',p.evaluate('__toolsMock.calls.find(c=>c.type==="batch-start").consent') is False)
  p.locator('#libraryImportDialog .library-import-heading button').click()
  menu({'artists':0,'covers':2,'lyrics':0})
- check('A single eligible action is flattened into playlist menu',p.locator('[data-submenu-trigger=enrich]').count()==0 and p.locator('[data-enrich-action=covers]').is_visible())
+ check('A single eligible action keeps the stable Additional submenu',p.locator('[data-submenu-trigger=enrich]').is_visible() and p.locator('[data-enrich-action=covers]').count()==1)
  p.keyboard.press('Escape');menu({'artists':0,'covers':0,'lyrics':0})
  check('No extra entry is shown when nothing needs enrichment',p.locator('[data-submenu-trigger=enrich],[data-enrich-action]').count()==0)
  errors(p);p.close()

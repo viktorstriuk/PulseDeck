@@ -17,7 +17,7 @@
   }
   class ReleaseCenter {
     constructor({openPage,isBusy=()=>false,api=window.pulse}) {
-      Object.assign(this,{openPage,isBusy,api});this.state=null;this.components=null;this.notified=new Set();this.actionBusy=false;this.uiError='';this.componentUiError='';
+      Object.assign(this,{openPage,isBusy,api});this.state=null;this.components=null;this.preferenceTail=Promise.resolve();this.preferenceEpoch=0;this.pendingPrefs=null;this.notified=new Set();this.actionBusy=false;this.uiError='';this.componentUiError='';
       this.buildCredits();this.renderAuthorCredit();this.bind();
       api.updates?.onChanged(s=>this.accept(s));api.components?.onChanged(s=>{this.components=s;this.renderComponents();});
       api.updates?.onPrepare(({token})=>{api.updates.prepared({token,safe:!this.isBusy()});});
@@ -53,10 +53,30 @@
       $('#updatesInstall').addEventListener('click',()=>this.run(()=>this.api.updates.install()));
       $('#updatesDefer').addEventListener('click',()=>this.run(()=>this.api.updates.defer('next-launch')));
       $('#updatesClearDeferred').addEventListener('click',()=>this.run(()=>this.api.updates.defer('ready')));
-      for(const [id,key]of [['updatesAuto','automatic'],['updatesPrerelease','prerelease'],['updatesComponentsAuto','components']])$("#"+id).addEventListener('change',e=>this.run(()=>this.api.updates.configure({[key]:e.target.checked})));
+      for(const [id,key]of [['updatesAuto','automatic'],['updatesPrerelease','prerelease'],['updatesComponentsAuto','components']])$("#"+id).addEventListener('change',e=>this.configure({[key]:e.target.checked}));
+      const intervalInput=$('#updatesIntervalValue'),intervalUnit=$('#updatesIntervalUnit');
+      const saveInterval=()=>{
+        const model=window.PulseUpdateInterval,p=model.fromInput(intervalInput.value,intervalUnit.value,this.state?.prefs?.intervalMinutes||model.DEFAULT);
+        intervalInput.value=model.display(p);this.configure(p);
+      };
+      intervalInput.addEventListener('change',saveInterval);
+      intervalInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();intervalInput.blur();}});
+      intervalUnit.addEventListener('change',()=>{
+        const model=window.PulseUpdateInterval,oldUnit=this.intervalUnit||'hours';
+        const p=model.fromInput(intervalInput.value,oldUnit,this.state?.prefs?.intervalMinutes||model.DEFAULT);p.intervalUnit=intervalUnit.value;
+        this.intervalUnit=p.intervalUnit;intervalInput.value=model.display(p);this.configure(p);
+      });
       $('#componentList').addEventListener('click',e=>{const b=e.target.closest('[data-component-action]');if(!b)return;this.run(async()=>{const s=await this.api.components[b.dataset.componentAction](b.dataset.componentId);if(s){this.components=s;this.renderComponents();}},true);});
       $('#componentsCheck').addEventListener('click',()=>this.run(async()=>{this.components=await this.api.components.check();this.renderComponents();},true));
       $('#componentsCancel').addEventListener('click',()=>this.api.components.cancel().catch(()=>{}));
+    }
+    configure(patch){
+      const epoch=++this.preferenceEpoch;this.pendingPrefs={...this.pendingPrefs,...patch};this.uiError='';
+      if(this.state)this.state={...this.state,prefs:{...this.state.prefs,...this.pendingPrefs}};this.render();
+      this.preferenceTail=this.preferenceTail.catch(()=>{}).then(async()=>{
+        try{const state=await this.api.updates.configure(patch);if(epoch===this.preferenceEpoch)this.pendingPrefs=null;this.accept(state);}
+        catch(error){if(epoch===this.preferenceEpoch){this.pendingPrefs=null;this.uiError=I18n.errorMessage(error);await this.refresh();}}
+      });return this.preferenceTail;
     }
     async run(action,component=false){
       if(this.actionBusy)return;this.actionBusy=true;this[component?'componentUiError':'uiError']='';
@@ -65,7 +85,7 @@
       finally{this.actionBusy=false;this.render();this.renderComponents();}
     }
     accept(s){
-      this.state=s;this.render();
+      this.state=this.pendingPrefs?{...s,prefs:{...s.prefs,...this.pendingPrefs}}:s;this.render();
       if(s.phase==='available'&&s.available&&!this.notified.has(s.available)){this.notified.add(s.available);const b=element('button','toast info update-notice');b.type='button';b.append(element('span','update-notice-icon'));const copy=element('span','toast-copy');const title=element('strong','');text(title,'UpdatesNewVersion',{version:s.available});copy.append(title,element('span','','UpdatesOpenDetails'));b.append(copy);b.addEventListener('click',()=>{this.openPage('updates');b.remove();});$('#toastStack').prepend(b);setTimeout(()=>b.remove(),14000);}
     }
     render(){
@@ -83,6 +103,12 @@
       $('#updatesCancel').disabled=s.phase!=='downloading';$('#updatesClearDeferred').classList.toggle('hidden',s.pendingMode!=='next-launch'||s.phase!=='ready');
       const notes=s.notes?.[I18n.language]||s.notes?.en||'';$('#updatesNotes').textContent=notes;$('#updatesNotesWrap').classList.toggle('hidden',!notes);
       for(const [id,key]of [['updatesAuto','automatic'],['updatesPrerelease','prerelease'],['updatesComponentsAuto','components']]){const input=$('#'+id);input.checked=!!s.prefs?.[key];input.disabled=busy;}
+      const interval=window.PulseUpdateInterval.normalize(s.prefs),input=$('#updatesIntervalValue'),unit=$('#updatesIntervalUnit');
+      $('#updatesInterval').hidden=!s.prefs?.automatic;$('#updatesAuto').setAttribute('aria-expanded',String(!!s.prefs?.automatic));
+      if(document.activeElement!==input)input.value=window.PulseUpdateInterval.display(interval);
+      unit.value=interval.intervalUnit;this.intervalUnit=interval.intervalUnit;
+      input.disabled=unit.disabled=busy||this.actionBusy;
+
     }
     renderComponents(){
       const s=this.components||{phase:'unconfigured',items:[]},list=$('#componentList'),focus=document.activeElement?.dataset;

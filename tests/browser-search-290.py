@@ -97,7 +97,7 @@ def typing_and_privacy(browser):
  check('Opt-in exposes local recommendations with reasons',p.locator('.search-discovery-row').count()==1 and 'Маяк' in p.locator('.search-discovery-copy small').inner_text())
  check('Recommendation refresh does not send listening data to providers',calls(p)==before)
  p.screenshot(path=str(OUT/'290-local-recommendations-fixtures.png'))
- p.click('[data-discovery-search]');p.wait_for_timeout(150);settled(p);check('More by artist is an explicit ordinary catalog search',p.evaluate('__search.filters.artist')=='Маяк' and calls(p)==before+6)
+ p.click('[data-discovery-search]');p.wait_for_timeout(150);settled(p);check('More by artist searches the query without implicitly filling filters',p.evaluate('__search.query')=='Маяк' and p.evaluate('__search.filters.artist ?? ""')=='' and calls(p)==before+6)
  p.evaluate('__search.filters={};__search.setQuery("")');p.wait_for_timeout(150);p.click('[data-discovery-clear]');p.wait_for_timeout(100)
  check('Clear removes local history and recommendation cards',p.evaluate('__search.discovery.count')==0 and p.locator('.search-discovery-row').count()==0)
  p.click('[data-discovery-enable]');p.wait_for_timeout(100);check('History collection can be paused',not p.evaluate('__search.discovery.enabled'))

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('pulse', {
   vault: { command: (command) => ipcRenderer.invoke('vault:command', command) },
   library: {
     command: command => ipcRenderer.invoke('library:command', command),
+    setCoverFromDrop: (file, rel, revision) => ipcRenderer.invoke('library:cover-drop', webUtils.getPathForFile(file), rel, revision),
     prepareDrop: (files, requestId) => ipcRenderer.invoke('library:prepare-drop', Array.from(files||[]).map(file=>webUtils.getPathForFile(file)).filter(Boolean), requestId),
     onProgress: cb => on('library:progress',cb),
     list: () => ipcRenderer.invoke('library:list'),

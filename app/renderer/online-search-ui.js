@@ -28,7 +28,7 @@
       this.compactButton=this.iconButton('SearchCompact','restore');this.compactButton.classList.add('search-compact');toolbar.append(this.compactButton);
       this.closeButton=this.iconButton('UIClose','close');this.closeButton.classList.add('search-dismiss');toolbar.append(this.closeButton);
       this.workspace.prepend(toolbar);toolbar.after($('.online-search-row',this.workspace));
-      this.chips=$('.source-tabs',this.workspace);this.chips.className='search-sources';this.chips.setAttribute('role','group');this.chips.setAttribute('aria-label',this.t('SearchSourcePriority'));
+      this.chips=$('.source-tabs',this.workspace);this.chips.replaceChildren();this.chips.className='search-sources';this.chips.setAttribute('role','group');this.chips.setAttribute('aria-label',this.t('SearchSourcePriority'));
       this.filterPanel=el('div','search-filter-popover search-aux-popover hidden');this.filterPanel.id='searchFiltersPanel';this.filterPanel.setAttribute('popover','manual');this.filterPanel.setAttribute('role','dialog');this.filterPanel.setAttribute('aria-labelledby','searchFiltersTitle');
       this.filterButton.setAttribute('aria-controls',this.filterPanel.id);this.filterButton.setAttribute('aria-haspopup','dialog');
       const filterHead=el('div','search-aux-header'),filterTitle=el('strong','',this.t('SearchFilters'));filterTitle.id='searchFiltersTitle';this.filterClose=this.iconButton('UIClose','close');filterHead.append(filterTitle,this.filterClose);this.filterPanel.append(filterHead);
@@ -71,6 +71,7 @@
       this.filterButton.addEventListener('click',()=>this.toggleAux('filters'));
       this.errorButton.addEventListener('click',()=>this.toggleAux('errors'));
       this.filterClose.addEventListener('click',()=>this.closeAux(true));this.errorClose.addEventListener('click',()=>this.closeAux(true));
+      this.filterPanel.querySelectorAll('input').forEach(field=>field.setAttribute('autocomplete','off'));
       this.filterPanel.addEventListener('input',e=>{const name=e.target.dataset.searchFilter;if(!name)return;this.filters[name]=e.target.value;this.scroll.scrollTop=0;this.displayOrder=[];this.setQuery(this.query);});
       this.filterPanel.addEventListener('click',e=>{if(!e.target.closest('[data-clear-filters]'))return;this.filters={};for(const input of this.filterPanel.querySelectorAll('[data-search-filter]'))input.value=input.tagName==='SELECT'?'any':'';this.setQuery(this.query);});
       this.expandButton.addEventListener('click',()=>this.o.openExpanded());this.compactButton.addEventListener('click',()=>{this.o.closeExpanded(true);this.mode='closed';this.openFloating();this.top.focus();});this.closeButton.addEventListener('click',()=>this.close());
@@ -87,7 +88,7 @@
       });
       this.scroll.addEventListener('click',e=>{
         const local=e.target.closest('[data-local-play]');if(local){e.stopPropagation();this.o.playLocal(local.dataset.localPlay);if(this.mode==='expanded')this.o.closeExpanded();this.close();}
-        const a=e.target.closest('[data-discovery-search]');if(a){this.filters={artist:a.dataset.discoverySearch};this.filterPanel.querySelector('[data-search-filter="artist"]').value=a.dataset.discoverySearch;this.setQuery(a.dataset.discoverySearch,true);}
+        const a=e.target.closest('[data-discovery-search]');if(a){this.setQuery(a.dataset.discoverySearch,true);}
         if(e.target.closest('[data-discovery-enable]'))this.configureDiscovery(!this.discovery?.enabled);
         if(e.target.closest('[data-discovery-clear]'))this.clearDiscovery();
         const dismiss=e.target.closest('[data-discovery-dismiss]');if(dismiss)this.o.api.discovery?.command({type:'dismiss',rel:dismiss.dataset.discoveryDismiss}).then(()=>this.refreshDiscovery()).catch(()=>{});
@@ -224,7 +225,8 @@
     renderSources(){
       // Retain keyed nodes: replacing the rail on every state update interrupted
       // CSS transitions, keyboard focus and pointer gestures.
-      const focused=document.activeElement,existing=new Map([...this.chips.children].map(n=>[n.dataset.source,n]));
+      const focused=document.activeElement,existing=new Map();
+      for(const child of [...this.chips.children]){const id=child.dataset.source;if(!M.IDS.includes(id)||existing.has(id)||!child.classList.contains('search-source'))child.remove();else existing.set(id,child);}
       for(const [index,id] of this.prefs.order.entries()){
         const source=M.SOURCES.find(s=>s.id===id),enabled=this.prefs.enabled.includes(id),state=this.sources.get(id);let chip=existing.get(id);
         if(!chip){chip=el('div','search-source');chip.dataset.source=id;
