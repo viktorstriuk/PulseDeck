@@ -87,13 +87,52 @@ def gradients(browser):
 
 def presets(browser):
  for size in [(1280,900),(800,760)]:
-  p=page(browser,size);p.locator('#library [data-track-root][data-id=t0]').click();p.evaluate('window.presetAudio=document.querySelector("audio");window.presetAudioSrc=presetAudio.currentSrc;')
+  # Use a longer real fixture so opening settings cannot naturally end the
+  # ten-second track and advance the queue on a busy CI runner.
+  p=page(browser,size,seed="__mock.playbackUrl=new URL('../../tests/fixtures/lyrics-clock.wav',document.baseURI).href;")
+  p.evaluate("""() => {
+   const playback=pulse.library.playback;
+   const gate=new Promise(resolve=>window.releasePresetPlayback=resolve);
+   pulse.library.playback=async rel=>{window.presetPlaybackRequested=true;await gate;return playback(rel);};
+  }""")
+  p.locator('#library [data-track-root][data-id=t0]').click()
+  p.wait_for_function('window.presetPlaybackRequested===true')
+  check('Preset test reproduces a pending playback request before audio is ready',p.locator('#audio').evaluate('a=>a.currentSrc===""&&a.readyState===0'))
+  p.evaluate('releasePresetPlayback()')
+  # click() does not wait for selectTrack's IPC or Chromium media loading.
+  # Never capture an empty currentSrc and compare it to the loaded resource.
+  p.wait_for_function("""() => {const a=document.querySelector('#audio');return a.currentSrc===__mock.playbackUrl&&a.readyState>=2&&!a.paused&&a.currentTime>0&&!a.error;}
+  """)
+  p.evaluate("window.presetAudio=document.querySelector('#audio');window.presetAudioSrc=presetAudio.currentSrc;")
+  check('Preset baseline uses decoded, playing audio rather than an empty URL',p.evaluate('!!presetAudioSrc&&presetAudioSrc===__mock.playbackUrl&&!presetAudio.paused'))
   p.click('#settingsBtn');p.click('[data-settings-page=presets]');p.click('#presetCreate');p.wait_for_selector('#presetEditor[open]');p.fill('#presetName','Рабочий стол')
   check('Preset editor lets users choose every settings section',p.locator('#presetSections input').count()==9 and p.locator('#presetSections input:checked').count()==9)
   shot(p,'295-preset-editor-'+str(size[0]),'#presetEditor');p.click('#presetSave');p.wait_for_selector('.preset-card')
   check('Preset saves real selected settings including icon and player bounds',p.evaluate('__mock.presets[0].settings.appIcon==="builtin:blue-violet"&&!!__mock.presets[0].settings.playerOverlay'))
-  p.evaluate('()=>{__mock.settings.theme="light";document.body.dataset.theme="light";}');p.locator('.preset-apply').click();p.wait_for_function('!__presets.busy&&__mock.settings.theme==="ocean"')
-  check('One-click preset application restores settings without replacing audio',p.evaluate('presetAudio===document.querySelector("audio")&&presetAudio.currentSrc===presetAudioSrc'))
+  # Change the actual renderer settings through its UI, not just the IPC mock
+  # or body.dataset (the renderer applies its theme to documentElement).
+  p.click('[data-settings-page=appearance]');p.locator('.theme-option[data-theme=light]').click()
+  p.wait_for_function('__mock.settings.theme==="light"&&document.documentElement.dataset.theme==="light"')
+  p.click('[data-settings-page=presets]');p.wait_for_selector('.preset-card')
+  p.evaluate("""() => {
+   window.presetTimeBeforeApply=presetAudio.currentTime;
+   window.presetMediaEvents=[];
+   for(const type of ['loadstart','emptied','abort','pause'])
+    presetAudio.addEventListener(type,()=>presetMediaEvents.push(type));
+  }""")
+  p.locator('.preset-apply').click()
+  p.wait_for_function('!__presets.busy&&__mock.settings.theme==="ocean"&&document.documentElement.dataset.theme==="ocean"')
+  audio=p.evaluate("""() => ({
+   sameNode:presetAudio===document.querySelector('#audio'),
+   beforeSrc:presetAudioSrc,afterSrc:presetAudio.currentSrc,
+   timeBefore:presetTimeBeforeApply,timeAfter:presetAudio.currentTime,
+   readyState:presetAudio.readyState,paused:presetAudio.paused,
+   error:presetAudio.error?.code||null,events:presetMediaEvents.slice()
+  })""")
+  check('One-click preset application restores settings without replacing audio',audio['sameNode'] and bool(audio['beforeSrc']) and audio['beforeSrc']==audio['afterSrc'],audio)
+  check('Applying a preset does not reload, pause or rewind the playing resource',not audio['events'] and not audio['paused'] and audio['error'] is None and audio['readyState']>=2 and audio['timeAfter']>=audio['timeBefore'],audio)
+  p.wait_for_function('(time)=>presetAudio.currentTime>time+0.05&&!presetAudio.paused',arg=audio['timeAfter'])
+  check('Audio continues advancing after preset application without reload events',p.evaluate('presetMediaEvents.length===0'),p.evaluate('presetMediaEvents'))
   shot(p,'295-presets-'+str(size[0]),'[data-settings-panel=presets]')
   check('Preset cards remain inside the viewport',p.locator('.preset-card').evaluate('n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth}'))
   close(p)
