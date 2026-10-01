@@ -68,7 +68,7 @@ def playlists(browser):
  menu({'artists':0,'covers':2,'lyrics':0})
  check('A single eligible action keeps the stable Additional submenu',p.locator('[data-submenu-trigger=enrich]').is_visible() and p.locator('[data-enrich-action=covers]').count()==1)
  p.keyboard.press('Escape');menu({'artists':0,'covers':0,'lyrics':0})
- check('No extra entry is shown when nothing needs enrichment',p.locator('[data-submenu-trigger=enrich],[data-enrich-action]').count()==0)
+ check('Completed metadata hides old enrichment actions but keeps the new video command',p.locator('[data-submenu-trigger=enrich]').count()==1 and p.locator('[data-enrich-action]').count()==0 and p.locator('[data-video-batch]').count()==1)
  errors(p);p.close()
 
 def imports(browser):

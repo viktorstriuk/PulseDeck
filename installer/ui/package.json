@@ -1,6 +1,6 @@
 {
   "name": "pulsedeck-setup-ui",
-  "version": "2.9.5",
+  "version": "2.9.6",
   "private": true,
   "main": "main.js",
   "license": "MIT",

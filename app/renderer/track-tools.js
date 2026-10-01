@@ -36,9 +36,13 @@
         `<button class="context-item" data-track-edit="artist">${window.Icon('edit',15)}<span data-i18n="TrackArtist">${I.h('TrackArtist')}</span></button>`+
         `<button class="context-item" data-track-edit="title">${window.Icon('music',15)}<span data-i18n="TrackTitle">${I.h('TrackTitle')}</span></button>`+
         (window.PulseCoverMedia.isVideo(track.coverUrl,track.coverType)?`<button class="context-item" data-track-animate role="menuitemcheckbox" aria-checked="${this.o.animationEnabled(track)}">${window.Icon('play',15)}<span data-i18n="CoverAnimate">${I.h('CoverAnimate')}</span><span class="cover-animation-mark">${window.Icon(this.o.animationEnabled(track)?'check':'close',14)}</span></button>`:'')+
-        `<button class="context-item" data-track-cover aria-haspopup="dialog">${window.Icon('image',15)}<span data-i18n="CoverChange">${I.h('CoverChange')}</span><span class="context-arrow">${window.Icon('chevronRight',13)}</span></button>`);
+        `<button class="context-item" data-track-cover aria-haspopup="dialog">${window.Icon('image',15)}<span data-i18n="CoverChange">${I.h('CoverChange')}</span><span class="context-arrow">${window.Icon('chevronRight',13)}</span></button>`)+
+        `<button class="context-item" data-normalize-track>${window.Icon('volume',15)}<span data-i18n="SoundNormalizeToTrack">${I.h('SoundNormalizeToTrack')}</span></button>`+
+        this.o.submenu('track-more',this.t('EnrichMore'),'layers',`<button class="context-item" data-track-video>${window.Icon('video',15)}<span data-i18n="MediaFindVideo">${I.h('MediaFindVideo')}</span></button>`);
     }
     handleMenu(event,menu){
+      const normalize=event.target.closest('[data-normalize-track]'),video=event.target.closest('[data-track-video]'),videos=event.target.closest('[data-video-batch]');
+      if(normalize||video||videos){event.preventDefault();event.stopPropagation();const snapshot=this.categorySnapshot,track=this.o.getTrackById(menu.dataset.trackId);this.o.hideMenu();if(videos&&snapshot)this.o.findVideos?.(snapshot.tracks,snapshot.title);else if(track){if(normalize)this.o.normalize?.(track);else this.o.findVideo?.(track);}return true;}
       const animation=event.target.closest('[data-track-animate]');
       if(animation){event.preventDefault();event.stopPropagation();this.o.toggleAnimation(menu.dataset.trackId,animation);return true;}
       const edit=event.target.closest('[data-track-edit]'),cover=event.target.closest('[data-track-cover]'),batch=event.target.closest('[data-enrich-action]');
@@ -55,10 +59,11 @@
       const slot=node('div','enrich-menu-slot');menu.querySelector('.context-sep')?.before(slot);if(!slot.isConnected)menu.append(slot);
       const render=counts=>{
         if(epoch!==this.capEpoch||menu.classList.contains('hidden')||menu.dataset.menuKind!=='category'||!slot.isConnected)return;
-        this.categorySnapshot={rels,counts:{...counts},title:cat.label,private:!!cat.protected};
-        const actions=F.actions(counts);if(!actions.length){slot.replaceChildren();return;}
+        this.categorySnapshot={rels,tracks:[...tracks],counts:{...counts},title:cat.label,private:!!cat.protected};
+        const actions=F.actions(counts);
         if(!slot.firstChild)slot.innerHTML=this.o.submenu('enrich',this.t('EnrichMore'),'layers','');
         const list=slot.querySelector('.context-submenu');
+        if(!list.querySelector('[data-video-batch]')){const button=this.button('MediaBatchFind','context-item','video');button.dataset.videoBatch='';list.append(button);}
         for(const action of F.ACTIONS){let button=list.querySelector(`[data-enrich-action="${action}"]`);
           if(!actions.includes(action)){button?.remove();continue;}
           if(!button){button=node('button','context-item');button.dataset.enrichAction=action;button.innerHTML=window.Icon(actionIcons[action],15);button.append(this.localized('span','',titleKeys[action]),node('small'));list.append(button);}
@@ -99,16 +104,16 @@
         catch(error){if(this.popup===p){status.textContent=this.error(error);save.disabled=false;}}
       });
     }
-    async openCover(track,anchor){
-      const p=this.createPopup('track-cover-picker','CoverChange',anchor,384);p.track=track;p.items=[];p.seen=new Set();p.selection=track.coverUrl?'current':'';
+    async openCover(track,anchor,options={}){
+      const p=this.createPopup('track-cover-picker',options.background?'MediaFindBackground':'CoverChange',anchor,384);Object.assign(p,options);p.track=track;p.items=[];p.seen=new Set();const cover=options.background?{coverUrl:options.record?.background?.url,coverType:options.record?.background?.type}:track;p.selection=cover.coverUrl?'current':'';
       const row=node('form','cover-search-row modal-search'),searchIcon=node('span');searchIcon.innerHTML=window.Icon('search',17);
       p.input=node('input');p.input.type='search';p.input.maxLength=300;p.input.placeholder=this.t('CoverSearchPlaceholder');p.input.setAttribute('aria-label',this.t('CoverSearchPlaceholder'));
       const guessed=F.splitName(track);p.input.value=[guessed?.artist||(F.unknown(track.artist)?'':track.artist),guessed?.title||track.title].filter(Boolean).join(' ');
-      const search=this.iconButton('CoverFind','search');search.type='submit';row.append(searchIcon,p.input,search);
+      const search=this.iconButton(options.background?'MediaFind':'CoverFind','search');search.type='submit';row.append(searchIcon,p.input,search);
       p.grid=node('div','cover-grid');p.grid.setAttribute('role','group');p.grid.setAttribute('aria-label',this.t('CoverResults'));
       p.status=node('div','track-tools-status');p.status.setAttribute('role','status');p.status.setAttribute('aria-live','polite');p.status.setAttribute('aria-atomic','true');
       const footer=node('div','cover-picker-footer'),upload=this.button('CoverUpload','button secondary','folder');p.upload=upload;p.more=this.button('CoverMore','button secondary');p.more.hidden=true;footer.append(upload,p.more);
-      p.hint=this.localized('p','cover-drop-hint','CoverDropHint');p.root.append(row,p.grid,p.status,p.hint,footer);if(track.coverUrl)this.addCoverTile(p,{id:'current',image:track.coverUrl,coverType:track.coverType,title:this.t('CoverCurrent')});
+      p.hint=this.localized('p','cover-drop-hint','CoverDropHint');p.root.append(row,p.grid,p.status,p.hint,footer);if(cover.coverUrl)this.addCoverTile(p,{id:'current',image:cover.coverUrl,coverType:cover.coverType,title:this.t('CoverCurrent')});
       // Opening is an explicit search action; no browsing requests happen on hover.
       row.addEventListener('submit',e=>{e.preventDefault();this.findCovers(p);});
       p.input.addEventListener('compositionstart',()=>{p.composing=true;clearTimeout(p.timer);});p.input.addEventListener('compositionend',()=>{p.composing=false;p.timer=setTimeout(()=>this.findCovers(p),320);});
@@ -119,7 +124,7 @@
       p.grid.addEventListener('click',e=>{const b=e.target.closest('[data-cover-id]');if(b&&!b.disabled&&b.dataset.coverId!=='current')this.chooseCover(p,b.dataset.coverId);});
       p.grid.addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;const buttons=[...p.grid.querySelectorAll('button:not(:disabled)')],i=buttons.indexOf(e.target);if(i<0)return;e.preventDefault();const n=e.key==='Home'?0:e.key==='End'?buttons.length-1:i+({ArrowRight:1,ArrowLeft:-1,ArrowUp:-4,ArrowDown:4}[e.key]||0);buttons[Math.max(0,Math.min(n,buttons.length-1))]?.focus();});
       this.positionPopup();p.input.focus();p.input.select();
-      try{const info=await this.cmd({type:'metadata',rel:track.rel});if(this.popup!==p)return;p.revision=info.revision;p.ready=true;this.findCovers(p);}
+      try{const info=p.background?p.record:await this.cmd({type:'metadata',rel:track.rel});if(this.popup!==p)return;p.revision=info.revision;p.ready=true;this.findCovers(p);}
       catch(error){if(this.popup===p)p.status.textContent=this.error(error);}
     }
     addCoverTile(p,item){
@@ -162,8 +167,11 @@
     }
     async chooseCover(p,id,file){
       if(this.popup!==p||!p.ready||p.saving)return;p.saving=true;p.status.textContent=this.t('TrackSaving');p.upload.disabled=true;p.input.disabled=true;p.grid.querySelectorAll('button').forEach(b=>b.disabled=true);
-      try{const result=file?await this.o.api.library.setCoverFromDrop(file,p.track.rel,p.revision):await this.cmd({type:id?'cover-select':'cover-upload',rel:p.track.rel,id,revision:p.revision});if(result.cancelled)return;p.revision=result.revision;await this.o.refresh();if(this.popup!==p)return;
-        const current=this.o.getTrack(p.track.rel);if(!id&&current?.coverUrl){p.grid.querySelector('[data-cover-id="current"]')?.remove();p.items=p.items.filter(x=>x.id!=='current');p.seen.delete(current.coverUrl);this.addCoverTile(p,{id:'current',image:current.coverUrl,coverType:current.coverType,title:this.t('CoverCurrent')});}
+      try{const result=p.background?
+        (file?await this.o.api.lyrics.backgroundFromDrop(file,p.track.rel,p.revision):id?await this.o.api.media.command({action:'background-select',rel:p.track.rel,id,revision:p.revision,consent:true}):await this.o.api.lyrics.command({type:'background-pick',rel:p.track.rel,revision:p.revision})):
+        (file?await this.o.api.library.setCoverFromDrop(file,p.track.rel,p.revision):await this.cmd({type:id?'cover-select':'cover-upload',rel:p.track.rel,id,revision:p.revision}));
+        if(result.cancelled||result.canceled)return;p.revision=result.revision;if(p.background)await p.onSaved?.(result);else await this.o.refresh();if(this.popup!==p)return;
+        const current=p.background?{coverUrl:result.background?.url,coverType:result.background?.type}:this.o.getTrack(p.track.rel);if(!id&&current?.coverUrl){p.grid.querySelector('[data-cover-id="current"]')?.remove();p.items=p.items.filter(x=>x.id!=='current');p.seen.delete(current.coverUrl);this.addCoverTile(p,{id:'current',image:current.coverUrl,coverType:current.coverType,title:this.t('CoverCurrent')});}
         p.selection=id||'current';p.grid.querySelectorAll('button').forEach(b=>{const selected=b.dataset.coverId===p.selection;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});p.status.textContent=this.t('CoverSaved');
       }catch(error){if(this.popup===p)p.status.textContent=this.error(error);}
       finally{p.saving=false;if(this.popup===p){p.upload.disabled=false;p.input.disabled=false;p.grid.querySelectorAll('button').forEach(b=>b.disabled=b.classList.contains('cover-image-failed'));this.positionPopup();}}

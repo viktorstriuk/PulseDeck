@@ -68,6 +68,10 @@ func errorData(e error) (string, map[string]string) {
 	}
 	text := e.Error()
 	switch {
+	case strings.Contains(text, "SETUP_LAUNCH_TIMEOUT"):
+		return "SetupLaunchTimeout", nil
+	case strings.Contains(text, "SETUP_LAUNCH"):
+		return "SetupLaunchFailed", nil
 	case strings.Contains(text, "SETUP_PATH"):
 		return "SetupErrorPath", nil
 	case strings.Contains(text, "SETUP_LANGUAGE_SAVE"):

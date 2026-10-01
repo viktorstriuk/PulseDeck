@@ -1,6 +1,6 @@
 {
   "name": "pulsedeck",
-  "version": "2.9.5",
+  "version": "2.9.6",
   "private": true,
   "description": "PulseDeck — local music, synchronized lyrics and personal playlists",
   "main": "main.js",

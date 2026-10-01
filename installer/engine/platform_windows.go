@@ -19,6 +19,12 @@ var k32, u32, g32 = syscall.NewLazyDLL("kernel32.dll"), syscall.NewLazyDLL("user
 
 func utf(s string) *uint16    { p, _ := syscall.UTF16PtrFromString(s); return p }
 func hideProcess(c *exec.Cmd) { c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} }
+
+// A GUI application must not inherit the installer's hidden startup state or
+// stdio handles. CREATE_NEW_PROCESS_GROUP lets it outlive maintenance.
+func detachApplication(c *exec.Cmd) {
+	c.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x200, HideWindow: false}
+}
 func replaceAtomic(src, dst string) error {
 	r, _, e := k32.NewProc("MoveFileExW").Call(uintptr(unsafe.Pointer(utf(src))), uintptr(unsafe.Pointer(utf(dst))), 0x1|0x8)
 	if r == 0 {

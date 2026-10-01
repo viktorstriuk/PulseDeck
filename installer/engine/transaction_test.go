@@ -376,6 +376,9 @@ func TestMockEndToEndInstallAndUninstallOnFilesystem(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "PulseDeck")
 	t.Setenv("APPDATA", t.TempDir())
 	t.Setenv("LOCALAPPDATA", t.TempDir())
+	oldBrand := brandRuntime
+	brandRuntime = func(file, version string) error { _, err := versionResource(version); return err }
+	t.Cleanup(func() { brandRuntime = oldBrand })
 	if e = installWithComponents(p, z, root, nil, fixtureProvisioner(t)); e != nil {
 		t.Fatal(e)
 	}

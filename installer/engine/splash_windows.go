@@ -348,7 +348,7 @@ func renderSplash(h uintptr) {
 	}
 	nativeText(dc, "PulseDeck", 166, 73, 390, 35, 25, 700, textColor)
 	nativeText(dc, strings.ReplaceAll(splash.t("SetupVersion"), "{version}", splash.version), 58, 306, 372, 26, 11, 400, mutedColor)
-	key := map[string]string{"runtime": "SetupRuntime", "components": "SetupComponents", "extracting": "SetupExtracting", "installing": "SetupInstalling", "finalizing": "SetupFinalizing", "waiting": "SetupWaiting", "verifying": "SetupVerifying", "rollback": "SetupRollback"}[event.Phase]
+	key := map[string]string{"runtime": "SetupRuntime", "components": "SetupComponents", "extracting": "SetupExtracting", "installing": "SetupInstalling", "finalizing": "SetupFinalizing", "launching": "SetupLaunching", "waiting": "SetupWaiting", "verifying": "SetupVerifying", "rollback": "SetupRollback"}[event.Phase]
 	if key == "" {
 		key = "SetupPreparing"
 	}

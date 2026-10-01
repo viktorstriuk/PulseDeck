@@ -20,7 +20,7 @@ try:
   p.set_content(html);p.wait_for_selector('#library [data-track-root]');p.wait_for_function(f"document.querySelector('#appVersion').textContent==='{VERSION}'")
   check('renderer initializes and shows packaged version',True)
   p.locator('#settingsBtn').click();p.locator('[data-settings-page=hotkeys]').click();p.wait_for_timeout(150)
-  check('all seventeen global actions are displayed',p.locator('#hotkeyList .hotkey-row').count()==17)
+  check('all eighteen global actions, including video toggle, are displayed',p.locator('#hotkeyList .hotkey-row').count()==18 and p.locator('[data-hotkey-row=toggleVideo]').count()==1)
   check('global switch has grid layout and text in distinct rows',p.locator('#hotkeysEnabled').evaluate("el=>{const row=el.parentElement;return getComputedStyle(row).display==='grid'&&row.querySelector('b').getBoundingClientRect().bottom<=row.querySelector('small').getBoundingClientRect().top+2;}"))
   p.screenshot(path=str(OUT/'270-hotkeys.png'))
   p.locator('[data-settings-page=appearance]').click();p.locator('#customIconBtn').click()

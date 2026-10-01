@@ -154,7 +154,9 @@ class FolderStore{
         if(file.content!==undefined){const handle=await fsp.open(out,'wx',0o600);try{await handle.writeFile(file.content);await handle.sync();}finally{await handle.close();}}
         else {const input=await this.full(file.source);if(await hash(input)!==file.hash)throw fail('FolderSourceChanged');
           try{await fsp.link(input,out);}catch(e){if(!['EXDEV','EPERM','EOPNOTSUPP','ENOTSUP'].includes(e.code))throw e;await fsp.copyFile(input,out,fs.constants.COPYFILE_EXCL);}
-          const handle=await fsp.open(out,'r');try{await handle.sync();}finally{await handle.close();}
+          // FlushFileBuffers (Node fsync on Windows) requires GENERIC_WRITE.
+          // Do not swallow EPERM: genuine write/flush failures must roll back.
+          const handle=await fsp.open(out,'r+');try{await handle.sync();}finally{await handle.close();}
           if(await hash(out)!==file.hash)throw fail('FolderSourceChanged');
         }
       }

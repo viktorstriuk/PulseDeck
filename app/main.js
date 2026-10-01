@@ -36,7 +36,13 @@ function getSearchService(){
   if(!searchService)searchService=createSearchService({fetch:(url,options)=>net.fetch(url,options),extractInfo:(url,options)=>getExtractor().inspect(url,options),fallback:args=>getExtractor().fallback(args)});
   return searchService;
 }
-let trackEditor=null, coverSearch=null, libraryImporter=null, libraryEnrichment=null, loudnessStore=null;
+let trackEditor=null, coverSearch=null, libraryImporter=null, libraryEnrichment=null, loudnessStore=null, mediaService=null;
+function getMediaService(){
+  if(!mediaService){const {MediaService}=require('./media/service');mediaService=new MediaService({data:DATA_DIR,components:getComponents,lyrics:getLyrics,vault:getVault,extractor:getExtractor,coverSearch:getCoverSearch,normalizeCover,
+    previewInput:id=>{const key=String(id||''),s=previewSources.get(key);if(!/^[a-f0-9]{36}$/.test(key)||!s||s.expiresAt<=Date.now()||!previewPort)throw I18n.error('MediaExpired');return `http://127.0.0.1:${previewPort}/preview/${key}`;},
+    busy:enabled=>{maintenanceOperations+=enabled?1:-1;},progress:p=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('media:progress',p);}});}
+  return mediaService;
+}
 let folderStore=null;
 function getFolders(){
   if(!folderStore){const {FolderStore}=require('./library/folders');folderStore=new FolderStore({music:MUSIC_DIR,data:DATA_DIR,settings:getSettings,commit:next=>settingsStore.set(next),list:()=>scanLibrary(true),editor:getTrackEditor(),vault:getVault,notify:notifyLibraryChanged,busy:enabled=>{maintenanceOperations+=enabled?1:-1;}});}
@@ -163,6 +169,7 @@ const BUILTIN_APP_ICONS = new Set(BUILTIN_APP_ICON_NAMES);
 for (const dir of [MUSIC_DIR, DATA_DIR, USER_DATA_DIR, COVER_DIR, APPEARANCE_DIR, BACKGROUND_DIR, CUSTOM_ICON_DIR, SETTINGS_DIR]) fs.mkdirSync(dir, { recursive: true });
 app.setPath('userData', USER_DATA_DIR);
 app.setAppUserModelId(APP_ID);
+app.setName?.(APP_NAME);
 
 let mainWindow = null;
 let overlayWindow = null;
@@ -310,6 +317,7 @@ const defaultSettings = {
   view: 'grid',
   sort: 'recent',
   volume: 0.82,
+  sound: require('./shared/media').sound(),
   favorites: [],
   lastTrack: '',
   categoryLayout: 'top',
@@ -340,6 +348,7 @@ const defaultSettings = {
     volumeUp: 'Alt+Shift+Up',
     volumeDown: 'Alt+Shift+Down',
     mute: 'Alt+Shift+M',
+    toggleVideo: 'Alt+Shift+V',
     nextPlaylist: 'Alt+Shift+PageDown',
     previousPlaylist: 'Alt+Shift+PageUp',
     showOverlay: 'Alt+Shift+O',
@@ -420,6 +429,7 @@ function normalizeSettings(saved = {}) {
     playerOverlay: { ...defaultSettings.playerOverlay, ...(isPlainObject(source.playerOverlay) ? source.playerOverlay : {}) },
   };
 
+  next.sound = require('./shared/media').sound(source.sound);
   next.onlineSearch = SearchModel.preferences(source.onlineSearch);
   next.language = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(String(next.language)) ? String(next.language) : 'ru';
   // Migrate the old built-in label once. Subsequent user-entered labels are never translated.
@@ -534,7 +544,7 @@ function mergeSettingsPatch(current, patch) {
     'categoryLayout', 'categoryOrder', 'categoryStyles', 'customCategories',
     'artistAliases', 'artistNames', 'artistAliasHistory', 'playlistMembership', 'trackOrders', 'trackOrderSchema',
     'backgroundMode', 'customBackground', 'backgroundHistory', 'backgroundOpacity', 'appIcon',
-    'hotkeys', 'playerOverlay', 'gameOverlay', 'lyricsDisplay',
+    'hotkeys', 'playerOverlay', 'gameOverlay', 'lyricsDisplay', 'sound',
     'surfaceStyle', 'surfaceOpacity', 'surfaceBorderColor', 'surfaceBorderOpacity', 'surfaceBorderThickness', 'surfaceApplyAll', 'surfaceProfiles', 'customIconStyle', 'appIconMarkVersion',
   ]);
   const next = { ...current };
@@ -553,6 +563,7 @@ function mergeSettingsPatch(current, patch) {
         }
       }
     }
+    else if (key === 'sound') next.sound=require('./shared/media').sound(value);
     else if (key === 'lyricsDisplay') next.lyricsDisplay={wordMode:value?.wordMode==='lines'?'lines':'words'};
     else if (key === 'hotkeys' && isPlainObject(value)) next.hotkeys = { ...(current.hotkeys || {}), ...value };
     else if (key === 'playerOverlay' && isPlainObject(value)) next.playerOverlay = { ...(current.playerOverlay || {}), ...value };
@@ -1566,7 +1577,7 @@ async function chooseAppearanceAsset(kind) {
 }
 
 
-const HOTKEY_ACTIONS = ['playPause','next','previous','volumeUp','volumeDown','mute','nextPlaylist','previousPlaylist','showOverlay','showHelp','toggleClickThrough','toggleShuffle','cycleRepeat','favoriteCurrent','focusSearch','openImport','trimCurrentTrack'];
+const HOTKEY_ACTIONS = ['toggleVideo','playPause','next','previous','volumeUp','volumeDown','mute','nextPlaylist','previousPlaylist','showOverlay','showHelp','toggleClickThrough','toggleShuffle','cycleRepeat','favoriteCurrent','focusSearch','openImport','trimCurrentTrack'];
 
 function sendHotkeyStatus() {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('hotkeys:status', hotkeyStatus);
@@ -2038,10 +2049,13 @@ function createWindow() {
     },
   });
 
+  const trustedSoundOrigin=(contents,details={})=>contents===mainWindow?.webContents && (details.isMainFrame!==false) && (!details.requestingUrl || details.requestingUrl===pathToFileURL(path.join(__dirname,'renderer','index.html')).href);
+  mainWindow.webContents.session?.setPermissionCheckHandler?.((contents,permission,_origin,details)=>permission==='speaker-selection'&&trustedSoundOrigin(contents,details));
+  mainWindow.webContents.session?.setPermissionRequestHandler?.((contents,permission,callback,details)=>callback(permission==='speaker-selection'&&trustedSoundOrigin(contents,details)));
   mainWindow.webContents.setBackgroundThrottling(false);
   applyWindowIcon(getSettings()).catch(() => {});
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {mainWindow.show();require('./windows/launch').signalReady({version:APP_VERSION});});
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -2078,7 +2092,7 @@ function getVault(){
   vaultStore=new VaultStore({music:MUSIC_DIR,settings:getSettings,commit:next=>settingsStore.set(next),
     listPublic:()=>scanLibrary(true),port:startPreviewServer,trash:file=>shell.trashItem(file),notify:notifyLibraryChanged,
     lyricsBridge:{capture:(track,entry)=>getLyrics().sealForVault(track,entry),exportPublic:entry=>getLyrics().exportPublicLyrics(entry)},
-    onLock:()=>{loudnessStore?.cancel(true);lyricsStore?.lockPrivate();if(libraryEnrichment?.active?.private)libraryEnrichment.cancel();if(libraryEnrichment)libraryEnrichment.lastJob=null;libraryEnrichment?.invalidate();coverSearch?.dispose();if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:locked');},
+    onLock:()=>{mediaService?.lock();loudnessStore?.cancel(true);lyricsStore?.lockPrivate();if(libraryEnrichment?.active?.private)libraryEnrichment.cancel();if(libraryEnrichment)libraryEnrichment.lastJob=null;libraryEnrichment?.invalidate();coverSearch?.dispose();if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('lyrics:locked');},
     purge:async(rels,covers,entry)=>{
       getLoudness().forget(rels);
       if(entry?.lyricsMigrated)await getLyrics().retirePublic(rels,entry);
@@ -2341,6 +2355,7 @@ function registerIpc() {
   handleLocalized('library:cover-drop',(event,file,rel,revision)=>{fromMain(event);return setCoverFromFile(rel,file,revision);});
   handleLocalized('library:prepare-drop',(event,paths,requestId)=>{fromMain(event);return getImporter().prepare(paths,{requestId});});
   handleLocalized('library:command',(event,command)=>{fromMain(event);return libraryCommand(command);});
+  handleLocalized('media:command',(event,command)=>{fromMain(event);return getMediaService().command(command);});
   handleLocalized('online:command',(event,command)=>{fromMain(event);return getSearchService().command(command);});
   handleLocalized('discovery:command',(event,command)=>{fromMain(event);return discoveryCommand(command);});
   handleLocalized('updates:status',event=>{fromMain(event);return getUpdates().snapshot();});
@@ -2373,11 +2388,12 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     if (!mainWindow.isVisible()) mainWindow.show();
     mainWindow.focus();
+    require('./windows/launch').signalReady({argv,version:APP_VERSION});
   });
 
   app.whenReady().then(async () => {
@@ -2403,6 +2419,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  mediaService?.dispose();
   loudnessStore?.cancel(true);
   I18n.close();
   clearTimeout(componentCheckTimer);updateManager?.close();componentManager?.cancel();searchService?.dispose();libraryEnrichment?.dispose();coverSearch?.dispose();libraryImporter?.dispose();

@@ -20,7 +20,7 @@ const I18n = window.PulseI18n;
   const selectedSurface=()=>Surface.current(state.settings,surfaceTarget);
   const updateSurface=patch=>Object.assign(state.settings,Surface.update(state.settings,surfaceTarget,patch));
   const orderHistory = new Library.OrderHistory(100);
-  let menuReorder=null,presetsUI=null;
+  let menuReorder=null,presetsUI=null,soundUI=null,videoUI=null;
   let trackReorder = null, trackSelection = null, lyricsView = null, searchUI = null, trackTools = null;
   let bulkBusy = false;
   let playlistSelection=null, playlistReorders=[], vaultEpoch=0, vaultPromptResolve=null;
@@ -28,9 +28,11 @@ const I18n = window.PulseI18n;
   let deferredLibraryRender = false, deferredCategoryRender = false, pendingLibrarySnapshot = null;
   let libraryLoadEpoch = 0, appIconEpoch = 0, finishReorderFrame = 0;
   const defaultAppIconUrl = new URL('../assets/app-icons/blue-violet-monitor.png', document.baseURI).href;
-  const audio = $('#audio');
+  const sound=new window.PulseSoundEngine();
+  const audio = new window.PulseMediaTransport($('#audio'),$('#musicVideo'),sound);
   const onlinePreviewAudio = $('#onlinePreviewAudio');
   const trimPreviewAudio = $('#trimPreviewAudio');
+  sound.register(onlinePreviewAudio,'online');sound.register(trimPreviewAudio,'trim');
 
   const sortLabels = () => ({ manual:I18n.t("UICustomOrder"), recent:I18n.t("UINewestFirst"), old:I18n.t("UIOldestFirst"), title:I18n.t("UITitleAZ"), titleDesc:I18n.t("UITitleZA"), artist:I18n.t("UIByArtist"), album:I18n.t("UIByAlbum"), durationAsc:I18n.t("UIShortestFirst"), durationDesc:I18n.t("UILongestFirst"), source:I18n.t("UIBySource"), sizeDesc:I18n.t("UIByFileSize"), loudnessAsc:I18n.t("LoudnessAscending"), loudnessDesc:I18n.t("LoudnessDescending") });
   const accentValues = {
@@ -40,7 +42,7 @@ const I18n = window.PulseI18n;
   const playlistIcons = window.PulsePlaylistIcons;
   const categoryIconNames = playlistIcons.names.map(name => `pi:${name}`);
   const builtinAppIcons = ['mint-violet','blue-violet','magenta-orange','ocean','forest','sunset','indigo','mono','sky','coral','lime','noir'];
-  const hotkeyDefaults = { enabled:true, playPause:'Alt+Shift+Space', next:'Alt+Shift+Right', previous:'Alt+Shift+Left', volumeUp:'Alt+Shift+Up', volumeDown:'Alt+Shift+Down', mute:'Alt+Shift+M', nextPlaylist:'Alt+Shift+PageDown', previousPlaylist:'Alt+Shift+PageUp', showOverlay:'Alt+Shift+O', showHelp:'Alt+Shift+H', toggleClickThrough:'Alt+Shift+P', toggleShuffle:'Alt+Shift+S', cycleRepeat:'Alt+Shift+R', favoriteCurrent:'Alt+Shift+F', focusSearch:'Alt+Shift+/', openImport:'Alt+Shift+I', trimCurrentTrack:'Alt+Shift+X' };
+  const hotkeyDefaults = { enabled:true, playPause:'Alt+Shift+Space', next:'Alt+Shift+Right', previous:'Alt+Shift+Left', volumeUp:'Alt+Shift+Up', volumeDown:'Alt+Shift+Down', mute:'Alt+Shift+M', nextPlaylist:'Alt+Shift+PageDown', previousPlaylist:'Alt+Shift+PageUp', showOverlay:'Alt+Shift+O', showHelp:'Alt+Shift+H', toggleClickThrough:'Alt+Shift+P', toggleShuffle:'Alt+Shift+S', cycleRepeat:'Alt+Shift+R', favoriteCurrent:'Alt+Shift+F', focusSearch:'Alt+Shift+/', openImport:'Alt+Shift+I', trimCurrentTrack:'Alt+Shift+X', toggleVideo:'Alt+Shift+V' };
   const appearanceDefaults = { theme:'dark', accent:'purple', customAccent:'#b038ae', backgroundMode:'off', backgroundOpacity:34, appIcon:'builtin:blue-violet', surfaceStyle:'glass', surfaceOpacity:94, surfaceBorderColor:'#d9e5f0', surfaceBorderOpacity:18, surfaceBorderThickness:1, surfaceApplyAll:false, surfaceProfiles:{} };
   const libraryDefaults = { view:'grid', sort:'recent' };
   const gameOverlayDefaults = { mode:'auto', onlyFullscreen:true, allowlistOnly:false, allowedGames:[], pollMs:120, rtssVisualizer:true, rtssAnchor:'top-left', rtssOffsetX:24, rtssOffsetY:24 };
@@ -68,6 +70,7 @@ const I18n = window.PulseI18n;
     ['favoriteCurrent',I18n.t("UIFavouriteCurrentTrack"),I18n.t("UIAddOrRemoveTheCurrentTrackFromFavourites"),'heart'],
     ['focusSearch',I18n.t("UIFocusSearch"),I18n.t("UIOpenTheLibrarySearchAndHighlightTheInput"),'search'],
     ['openImport',I18n.t("UIOpenImportHotkey"),I18n.t("UIOpenTheOnlineImportWindowFromAnywhere"),'cloudDownload'],
+    ['toggleVideo',I18n.t('MediaToggleVideo'),I18n.t('MediaToggleHint'),'video'],
     ['trimCurrentTrack',I18n.t("UITrimCurrentTrack"),I18n.t("UIOpenTheTrimEditorForTheCurrentYouTubeTrack"),'paint'],
   ];
 
@@ -80,7 +83,7 @@ const I18n = window.PulseI18n;
       categoryLayout: 'top', categoryOrder: [], categoryStyles: {}, customCategories: [],
       artistAliases: {}, artistNames: {}, playlistMembership: {}, trackOrders: {}, favorites: [],
       backgroundMode: 'off', customBackground: '', backgroundHistory: [], backgroundOpacity: 34, appIcon: 'builtin:blue-violet', surfaceStyle: 'glass', surfaceOpacity: 94, surfaceBorderColor: '#d9e5f0', surfaceBorderOpacity: 18, surfaceBorderThickness: 1, surfaceApplyAll: false, surfaceProfiles: {},
-      hotkeys: { enabled:true, playPause:'Alt+Shift+Space', next:'Alt+Shift+Right', previous:'Alt+Shift+Left', volumeUp:'Alt+Shift+Up', volumeDown:'Alt+Shift+Down', mute:'Alt+Shift+M', nextPlaylist:'Alt+Shift+PageDown', previousPlaylist:'Alt+Shift+PageUp', showOverlay:'Alt+Shift+O', showHelp:'Alt+Shift+H', toggleClickThrough:'Alt+Shift+P', toggleShuffle:'Alt+Shift+S', cycleRepeat:'Alt+Shift+R', favoriteCurrent:'Alt+Shift+F', focusSearch:'Alt+Shift+/', openImport:'Alt+Shift+I', trimCurrentTrack:'Alt+Shift+X' },
+      hotkeys: { enabled:true, playPause:'Alt+Shift+Space', next:'Alt+Shift+Right', previous:'Alt+Shift+Left', volumeUp:'Alt+Shift+Up', volumeDown:'Alt+Shift+Down', mute:'Alt+Shift+M', nextPlaylist:'Alt+Shift+PageDown', previousPlaylist:'Alt+Shift+PageUp', showOverlay:'Alt+Shift+O', showHelp:'Alt+Shift+H', toggleClickThrough:'Alt+Shift+P', toggleShuffle:'Alt+Shift+S', cycleRepeat:'Alt+Shift+R', favoriteCurrent:'Alt+Shift+F', focusSearch:'Alt+Shift+/', openImport:'Alt+Shift+I', trimCurrentTrack:'Alt+Shift+X', toggleVideo:'Alt+Shift+V' },
       gameOverlay: { mode:'auto', onlyFullscreen:true, allowlistOnly:false, allowedGames:[], pollMs:120, rtssVisualizer:true, rtssAnchor:'top-left', rtssOffsetX:24, rtssOffsetY:24 },
       playerOverlay: { mode:'off', duration:3.2, notifyAutoNext:false, showCover:true, showTitle:true, showArtist:true, showProgress:true, showElapsed:true, showRemaining:true, showLabel:false, showControls:true, showPlaylist:false, showClickThroughToggle:true, label:'', opacity:94, cornerRadius:18, clickThroughWhenMinimized:true, fullscreenTopmost:true, backgroundVisible:true, borderVisible:true, backgroundBlur:18, visualizer:true, visualizerStyle:'bars', visualizerPosition:'background', visualizerHeight:120, visualizerColor:'#b038ae', visualizerColor2:'#4665c2', visualizerColorMode:'cover', visualizerOpacity:100, visualizerDetail:96, visualizerGap:20, visualizerLineWidth:7.0, visualizerRoundness:100, visualizerRotation:10, visualizerMirror:false, visualizerFill:true, sensitivity:1, smoothing:35, background:'#11151d', width:430, height:122, bounds:null },
     },
@@ -184,6 +187,9 @@ const I18n = window.PulseI18n;
   async function playClaimed(owner, token, element) {
     if (!playbackClaimIsCurrent(owner, token)) return false;
     try {
+      await sound.resume();
+      if(element.soundPreparation)await element.soundPreparation;
+      if(!playbackClaimIsCurrent(owner,token))return false;
       await element.play();
     } catch (error) {
       if (!playbackClaimIsCurrent(owner, token) || error?.name === 'AbortError') return false;
@@ -697,16 +703,16 @@ const I18n = window.PulseI18n;
     const rails = [$('#categoryChips'), $('#categorySidebar'), $('#hiddenCategories')];
     const positions = rails.map(node => [node.scrollLeft, node.scrollTop]);
     $('#categoryChips').classList.toggle('folder-overview',!!state.folderOverview);
-    $('#categoryChips').innerHTML = folderRailMarkup()+(state.folderOverview?'':visible.map((c) => tabMarkup(c)).join('') + plus);
+    window.PulseKeyedDOM.patch($('#categoryChips'),folderRailMarkup()+(state.folderOverview?'':visible.map((c) => tabMarkup(c)).join('') + plus));
     const sidebar = $('#categorySidebar');
-    sidebar.innerHTML = `<div class="category-side-title" data-i18n="UIPlaylists">${I18n.h("UIPlaylists")}</div>${state.categoryEditMode && hiddenCats.length ? `<div class="side-hidden-categories"><span data-i18n="UIHidden">${I18n.h("UIHidden")}</span>${hiddenCats.map((c)=>`<button draggable="true" data-restore-category="${esc(c.key)}" title="${I18n.h("UIRestore", {value1:(c.label)})}" data-i18n-title="UIRestore" data-i18n-title-args="${I18n.attrArgs({value1:(c.label)})}" style="${categoryCssVars(c)}">${categoryIconMarkup(c.icon || 'eyeOff',13)}<b>${esc(c.label)}</b></button>`).join('')}</div>` : ''}${folderRailMarkup(true)}${state.folderOverview?'':visible.map((c) => tabMarkup(c,true)).join('')}${state.categoryEditMode&&!state.folderOverview ? `<button class="category-side-add" data-add-category>${window.Icon('plus',14)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>` : ''}`;
+    window.PulseKeyedDOM.patch(sidebar,`<div class="category-side-title" data-i18n="UIPlaylists">${I18n.h("UIPlaylists")}</div>${state.categoryEditMode && hiddenCats.length ? `<div class="side-hidden-categories"><span data-i18n="UIHidden">${I18n.h("UIHidden")}</span>${hiddenCats.map((c)=>`<button draggable="true" data-restore-category="${esc(c.key)}" title="${I18n.h("UIRestore", {value1:(c.label)})}" data-i18n-title="UIRestore" data-i18n-title-args="${I18n.attrArgs({value1:(c.label)})}" style="${categoryCssVars(c)}">${categoryIconMarkup(c.icon || 'eyeOff',13)}<b>${esc(c.label)}</b></button>`).join('')}</div>` : ''}${folderRailMarkup(true)}${state.folderOverview?'':visible.map((c) => tabMarkup(c,true)).join('')}${state.categoryEditMode&&!state.folderOverview ? `<button class="category-side-add" data-add-category>${window.Icon('plus',14)}<span data-i18n="UINewPlaylist">${I18n.h("UINewPlaylist")}</span></button>` : ''}`);
     sidebar.classList.toggle('hidden', state.settings.categoryLayout !== 'side');
     document.querySelector('.content')?.classList.toggle('categories-side', state.settings.categoryLayout === 'side');
     const hiddenBox = $('#hiddenCategories');
     hiddenBox.classList.toggle('hidden', !state.categoryEditMode || !hiddenCats.length);
-    hiddenBox.innerHTML = state.categoryEditMode && hiddenCats.length
+    window.PulseKeyedDOM.patch(hiddenBox,state.categoryEditMode && hiddenCats.length
       ? `<span class="hidden-label" data-i18n="UIHidden2">${I18n.h("UIHidden2")}</span>${hiddenCats.map((c) => `<button class="hidden-category" draggable="true" data-restore-category="${esc(c.key)}" style="${categoryCssVars(c)}">${categoryIconMarkup(c.icon || 'eyeOff',13)}<span>${esc(c.label)}</span></button>`).join('')}`
-      : '';
+      : '');
     rails.forEach((node, i) => { node.scrollLeft = positions[i][0]; node.scrollTop = positions[i][1]; });
     playlistSelection?.sync(allCats.map(c=>c.key));
   }
@@ -1025,9 +1031,11 @@ const I18n = window.PulseI18n;
   }
   function currentTrack() { return findTrack(state.currentId); }
 
+  let selectionEpoch=0;
   async function selectTrack(id, autoplay = true, toggleIfCurrent = false) {
     const track = findTrack(id);
     if (!track) return;
+    const selection=++selectionEpoch;
     const playbackToken = autoplay ? claimPlayback('local') : null;
     if (state.onlinePreview) stopOnlinePreview();
     if (state.currentId === id) {
@@ -1043,7 +1051,7 @@ const I18n = window.PulseI18n;
     }
     if (api.library.playback) {
       const resolved = await api.library.playback(track.rel);
-      if (autoplay && playbackToken !== state.playbackEpoch) return;
+      if(selection!==selectionEpoch || (autoplay && playbackToken !== state.playbackEpoch))return;
       if (resolved) Object.assign(track, resolved);
     }
     const previousId = state.currentId;
@@ -1051,6 +1059,8 @@ const I18n = window.PulseI18n;
     if(track.vaultKey)audio.crossOrigin='anonymous';else audio.removeAttribute('crossorigin');
     audio.src = track.audioUrl;
     audio.load();
+    videoUI?.trackChanged(track);
+    audio.soundPreparation=soundUI?.prepareTrack(track,audio.audio)||Promise.resolve();
     updatePlayerUI();
     patchTrackVisuals([previousId, id]);
     state.settings.lastTrack = track.vaultKey?'':track.rel;
@@ -2166,8 +2176,9 @@ const I18n = window.PulseI18n;
         return;
       }
       state.onlinePreview = { ...result, sourceUrl:url };
-      onlinePreviewAudio.src = result.previewUrl;
+      onlinePreviewAudio.crossOrigin='anonymous';onlinePreviewAudio.src = result.previewUrl;
       onlinePreviewAudio.load();
+      onlinePreviewAudio.soundPreparation=soundUI?.preparePreview(result,onlinePreviewAudio)||Promise.resolve();
       updateOnlinePreviewBar();
       try { await playClaimed('online', token, onlinePreviewAudio); }
       catch (e) { toast('bad',I18n.t("UIAudioPreviewDidNotStart"), I18n.errorMessage(e) || String(e)); }
@@ -2291,7 +2302,8 @@ const I18n = window.PulseI18n;
       I18n.setText($('#autoTrimMethod'),()=>(I18n.t("UIDoubleClickToApplyTheSuggestedBoundaries")));
       renderTrimWave([]);
       syncTrimUI();
-      trimPreviewAudio.src = prepared.previewUrl;
+      trimPreviewAudio.crossOrigin='anonymous';trimPreviewAudio.src = prepared.previewUrl;
+      trimPreviewAudio.soundPreparation=soundUI?.preparePreview(prepared,trimPreviewAudio)||Promise.resolve();
       trimPreviewAudio.load();
       claimPlayback('trim');
       openModal('trimModal');
@@ -2326,12 +2338,14 @@ const I18n = window.PulseI18n;
     if (!url) return;
     url = downloadKey(url);
     let job = state.downloadJobs.get(url);
-    if (job && ['metadata','download','postprocess','verify','done'].includes(job.stage)) return;
+    if(job?.stage==='done')return job.result||{ok:!!job.file,rel:job.file};
+    if (job && ['metadata','download','postprocess','verify'].includes(job.stage)) return {ok:false,message:I18n.t('MediaAudioBusy')};
     if (!job || job.stage === 'error') job = createDownloadJob(url, 'metadata');
     Object.assign(job, { stage:'metadata', percent:null }); patchDownloadRows(url);
     try {
       const result = await api.online.download(url, { ...options, jobId:job.jobId });
       if (result?.ok) {
+        job.result=result;
         acceptDownloadProgress({ jobId:job.jobId, url, stage:'done', percent:100, text:I18n.t("AppDoneTheTrackWasAddedToYourLibrary"), file:result.rel });
         await loadLibrary({ quiet:true });
         const downloadedTrack = state.tracks.find((track) => track.rel === result.rel) || state.tracks.find((track) => downloadKey(track.sourceUrl || '') === url);
@@ -2339,8 +2353,10 @@ const I18n = window.PulseI18n;
       } else {
         acceptDownloadProgress({ jobId:job.jobId, url, stage:'error', percent:null, message:result?.message || I18n.t("UIDownloaderDidNotConfirmACompletedFile") });
       }
+      return result;
     } catch (error) {
       acceptDownloadProgress({ jobId:job.jobId, url, stage:'error', percent:null, message:I18n.errorMessage(error) || String(error) });
+      return {ok:false,message:I18n.errorMessage(error)};
     }
   }
 
@@ -2681,7 +2697,7 @@ const I18n = window.PulseI18n;
   }
 
   function setSettingsPage(page = 'appearance') {
-    const valid = ['presets','appearance','player','games','hotkeys','library','language','about','updates'];
+    const valid = ['sound','presets','appearance','player','games','hotkeys','library','language','about','updates'];
     if (page === 'language') refreshLanguages().catch(()=>{});
     if (page === 'presets')presetsUI?.load();
     state.settingsPage = valid.includes(page) ? page : 'appearance';
@@ -2978,13 +2994,12 @@ const I18n = window.PulseI18n;
     if (!c.visualizer || ((c.mode==='off' && !state.overlayPreviewOpen) && !wantsGameViz)) return null;
     if (state.analyser) { state.analyser.smoothingTimeConstant=clamp((c.smoothing??78)/100,0,.95); startVisualizerPump(); return state.analyser; }
     try {
-      state.audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
-      state.mediaSource ||= state.audioContext.createMediaElementSource(audio);
-      state.analyser=state.audioContext.createAnalyser();
+      state.audioContext=sound.ensure();
+      state.analyser=sound.analyser;
       // 256 gives enough frequency resolution for radial/orb modes without making the renderer expensive.
       state.analyser.fftSize=256;
       state.analyser.smoothingTimeConstant=clamp((c.smoothing??78)/100,0,.95);
-      state.mediaSource.connect(state.analyser); state.analyser.connect(state.audioContext.destination);
+      // Every source already reaches this analyser through the common sound graph.
       if (state.audioContext.state==='suspended') await state.audioContext.resume().catch(()=>{});
       startVisualizerPump();
     } catch (error) { console.warn(I18n.t('VisualizerUnavailable'),error); state.analyser=null; }
@@ -3090,6 +3105,7 @@ const I18n = window.PulseI18n;
     else if(action==='favoriteCurrent' && currentTrack())await toggleFavorite(currentTrack());
     else if(action==='focusSearch')focusSearchInput();
     else if(action==='openImport')openOnlineImportModal();
+    else if(action==='toggleVideo'){await videoUI?.toggle();}
     else if(action==='trimCurrentTrack' && currentTrack())await openTrimForTrack(currentTrack());
     else if(action==='seekTo'){const d=Number(audio.duration)||Number(currentTrack()?.duration)||0;const ratio=clamp(payload.value,0,1);if(d>0){audio.currentTime=ratio*d;syncOverlayState(true);}return;}
     else if(action==='showOverlay')shouldNotify=true;
@@ -3429,7 +3445,7 @@ const I18n = window.PulseI18n;
     audio.addEventListener('loadedmetadata', () => {
       const d = Number.isFinite(audio.duration) ? audio.duration : 0;
       $('#totalTime').textContent = formatTime(d);
-      const t = currentTrack(); if (t && d > 0) { t.duration = d; patchDuration(t); updateMeta(); }
+      const t = currentTrack(); if (t && d > 0 && !audio.videoMode) { t.duration = d; patchDuration(t); updateMeta(); }
       syncOverlayState(true);
     });
     audio.addEventListener('error', () => { if (audio.src) toast('bad',I18n.t("UICouldNotOpenThisFile"),I18n.t("UIBuiltInPlayerMayNotSupportThisFormat")); });
@@ -3509,6 +3525,7 @@ const I18n = window.PulseI18n;
     trimPreviewAudio.addEventListener('timeupdate', syncTrimTransport);
     trimPreviewAudio.addEventListener('loadedmetadata', syncTrimTransport);
     $('#trimCancel').addEventListener('click', () => closeModal('trimModal'));
+    $('#trimAddVideo').addEventListener('click',()=>{if(!state.trim)return;const draft=structuredClone(state.trim);trimPreviewAudio.pause();videoUI.openEditor({title:draft.prepared.title,artist:draft.prepared.artist},draft.sourceUrl,{audioDraft:draft});});
     $('#trimDownload').addEventListener('click', async () => {
       if (!state.trim) return;
       const { sourceUrl, start, end } = state.trim;
@@ -3668,8 +3685,26 @@ const I18n = window.PulseI18n;
       getTracks:()=>state.tracks,onQuery:q=>{if(state.query!==q){state.query=q;renderLibraryBody();}},playLocal:id=>selectTrack(id,true),openExpanded:()=>openModal('onlineModal'),closeExpanded:preserve=>closeModal('onlineModal',preserve===true),
       save:prefs=>{state.settings.onlineSearch=structuredClone(prefs);api.settings.set({onlineSearch:state.settings.onlineSearch}).catch(error=>toast('bad',I18n.t('SearchSettingsError'),I18n.errorMessage(error)));}});
     trackTools=new window.PulseTrackTools({api,notify:toast,submenu:playlistSubmenu,arm:armTrackSubmenu,hideMenu:hideContextMenu,
+      normalize:track=>soundUI?.useReference(track),findVideo:track=>videoUI?.openSearch(track),findVideos:(tracks,title)=>videoUI?.openBatch(tracks,title),
       animationEnabled,toggleAnimation, getTrackById:findTrack,getTrack:rel=>allKnownTracks().find(t=>t.rel===rel),refresh:()=>refreshAfterVault(),
       closeSearch:()=>{if(searchUI?.mode==='expanded')closeModal('onlineModal');else searchUI?.close();}});
+    soundUI=new window.PulseSoundUI({sound,api,getSettings:()=>state.settings,currentTrack,queue:()=>queueIds().map(findTrack).filter(Boolean),scope:()=>state.category,localElement:audio.audio,transport:audio,notify:toast,
+      saveSettings:async value=>{const saved=await api.settings.set({sound:value});state.settings.sound=saved.sound||value;},testSound:()=>soundTest.run()});
+    const soundTest=new window.PulseSoundTest({api,sound,transport:audio,currentTrack,firstTrack:()=>queueIds().map(findTrack).find(Boolean),profile:track=>soundUI.profile(track),
+      register:el=>{playbackElements.test=el;el.addEventListener('playing',()=>guardPlayback('test'));},
+      claim:()=>claimPlayback('test'),isCurrent:token=>playbackClaimIsCurrent('test',token),release:()=>releasePlayback('test'),
+      play:(token,el)=>playClaimed('test',token,el),resume:()=>playClaimed('local',claimPlayback('local'),audio)});
+    api.lyrics?.onLock?.(()=>soundUI.lock());
+    videoUI=new window.PulseMusicVideoUI({api,transport:audio,sound,soundUI,currentTrack,lyrics:()=>lyricsView,notify:toast,formatTime,changed:()=>loadLibrary({quiet:true}),
+      stopOtherEditors:()=>{hideContextMenu();trackTools.closePopup(false);},
+      registerPreview:(element,owner)=>{playbackElements[owner]=element;element.addEventListener('playing',()=>guardPlayback(owner));},
+      unregisterPreview:element=>{for(const [owner,e]of Object.entries(playbackElements))if(e===element)delete playbackElements[owner];sound.unregister(element);},
+      claimPreview:claimPlayback,playPreview:(owner,element)=>playClaimed(owner,claimPlayback(owner),element),setMaster:value=>setVolume(value,true),downloadAudio:downloadOnline,finishAudioDownload:()=>closeModal('trimModal')});
+    lyricsView.findVideo=async()=>{await lyricsView.flushPresentation();lyricsView.$('lyricsSettings').close();videoUI.openSearch(lyricsView.track,{asBackground:true});};
+    lyricsView.findBackground=async()=>{
+      await lyricsView.flushPresentation();const track=lyricsView.track;if(!track)return;const record=await api.media.command({action:'info',rel:track.rel});lyricsView.$('lyricsSettings').close();
+      trackTools.openCover(track,$('#lyricsBtn'),{background:true,record,onSaved:r=>{if(lyricsView.track?.rel!==track.rel)return;lyricsView.revision=r.revision;lyricsView.revisions.set(track.rel,r.revision);lyricsView.customBackground=r.background||null;lyricsView.theme=lyricsView.L.theme(r.theme);if(lyricsView.doc)lyricsView.doc.theme=lyricsView.theme;lyricsView.renderSettings();lyricsView.paintTheme();}});
+    };
     new window.PulseListeningTracker({audio,getTrack:()=>state.playbackOwner==='local'?currentTrack():null,isEnabled:()=>searchUI?.discovery?.enabled===true,
       command:command=>api.discovery?.command(command)||Promise.resolve({ok:false})});
     presetsUI=new window.PulsePresetsUI({api,notify:toast,confirm:openConfirmation,
@@ -3685,6 +3720,7 @@ const I18n = window.PulseI18n;
         state.hotkeyStatus=await api.hotkeys.status().catch(()=>({}));
         applyAppearance();renderHotkeys();renderOverlaySettings();renderGameOverlaySettings();renderLanguages();
         await applyAppIconPreview();await renderBackgroundHistory();setVolume(state.settings.volume,false);
+        await soundUI.configure(state.settings.sound);if(currentTrack())audio.soundPreparation=soundUI.prepareTrack(currentTrack(),audio.audio);
         lyricsView.words=state.settings.lyricsDisplay?.wordMode!=='lines';lyricsView.lastGradient=state.settings.lyricsLastGradient;lyricsView.updateTools();lyricsView.render();
         renderLibrary();updateSortControl();syncOverlayState(true);await searchUI.refreshDiscovery();
       }
@@ -3722,6 +3758,7 @@ const I18n = window.PulseI18n;
       await renderBackgroundHistory();
       updateSortControl();
       setVolume(Number(state.settings.volume ?? .82), false);
+      await soundUI.configure(state.settings.sound);
       state.lastVolume = Number(state.settings.volume ?? .82) || .82;
       updateMaxIcon(await api.window.isMaximized());
     } catch {}

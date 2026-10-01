@@ -16,7 +16,7 @@ function repair({shell,execPath,iconPath,desktop,appData,appId,name='PulseDeck',
       if(!fs.existsSync(file))continue;
       const current=shell.readShortcutLink(file);
       if(!current?.target||!equal(current.target,execPath))continue;
-      if(shell.writeShortcutLink(file,'update',{...current,appUserModelId:appId,icon:iconPath,iconIndex:0}))updated.push(file);
+      if(shell.writeShortcutLink(file,'update',{...current,description:name,appUserModelId:appId,icon:iconPath,iconIndex:0}))updated.push(file);
     } catch {} // A locked/corrupt link must not stop the application from opening.
   }
   if(createStartMenu&&!fs.existsSync(start)) {

@@ -19,7 +19,7 @@ async function encrypt(store,media){
 }
 module.exports={
   async visibleRecord(r,record){
-    const {backgroundAsset,originalSidecars,...visible}=record||{};
+    const {backgroundAsset,videoAsset,originalSidecars,...visible}=record||{};
     let background=null;
     const ref=visible.theme?.customBackground;
     if(ref){
@@ -33,7 +33,15 @@ module.exports={
         }
       }catch(e){if(e.code!=='ENOENT')throw e;visible.warnings=[...(visible.warnings||[]),I18n.t('LyricsBackgroundMissing')];}
     }
-    return {...visible,background};
+    let musicVideo=null;
+    if(visible.musicVideo?.ref){
+      try{
+        const info=visible.musicVideo,ref=info.ref;
+        if(PRIVATE.test(ref)&&r.entry&&videoAsset?.ref===ref){await regular(privatePath(this,videoAsset));musicVideo={...info,url:await this.getVault().lyricsAsset(r.s,r.entry,videoAsset)};}
+        else if(PUBLIC.test(ref)){const file=publicPath(this,r.recordingId,ref);await regular(file);musicVideo={...info,url:pathToFileURL(file).href};}
+      }catch(e){if(e.code!=='ENOENT')throw e;visible.warnings=[...(visible.warnings||[]),I18n.t('MediaMissing')];}
+    }
+    return {...visible,background,musicVideo};
   },
   async pickBackground({rel,revision}){
     await this.resolve(rel);
@@ -62,33 +70,75 @@ module.exports={
     // Clean only the formerly referenced, application-owned public asset. Never
     // delete the selected source, an external cover or an encrypted descriptor.
     const previous=old?.theme?.customBackground;
-    if(PUBLIC.test(previous||'')&&previous!==ref)await fsp.unlink(publicPath(this,r.recordingId,previous)).catch(()=>{});
+    if(PUBLIC.test(previous||'')&&previous!==ref&&previous!==old?.musicVideo?.ref)await fsp.unlink(publicPath(this,r.recordingId,previous)).catch(()=>{});
     return this.visibleRecord(r,{...record,recordingId:r.recordingId,private:isPrivate});
   },
+  async setMusicVideo({rel,revision,file,info,asBackground=false}){
+    const epoch=this.lockEpoch,r=await this.resolve(rel),old=await this.readRecord(r);
+    if((old?.revision||null)!==(revision||null))throw I18n.error('LyricsAnotherActionHasChangedTheAppearanceReopenThe');
+    const media=await this.inspectBackground(file);
+    if(!media.type.startsWith('video/'))throw I18n.error('LyricsBackgroundInvalid');
+    const isPrivate=!!r.entry&&!this.getVault().index.publicRefs[r.entry.id];
+    let asset,ref;
+    if(isPrivate){asset=await encrypt(this,media);ref=asset.ref;}
+    else ref=path.basename(await Images.storeFile(media,directory(this,r.recordingId)));
+    const latest=await this.readRecord(r);
+    if(epoch!==this.lockEpoch||(r.entry&&this.getVault().sessions.get(r.s.d.id)!==r.s))throw I18n.error('LyricsPlaylistLocked');
+    if((latest?.revision||null)!==(revision||null))throw I18n.error('LyricsAnotherActionHasChangedTheAppearanceReopenThe');
+    const M=require('../shared/media');
+    const record={...(old||{}),revision:crypto.randomUUID(),updatedAt:Date.now(),musicVideo:{ref,type:media.type,duration:Math.max(0,Number(info.duration)||0),sourceUrl:M.youtube(info.sourceUrl)||'',...M.sync(info),profile:M.profile(info.profile)}};
+    if(asset)record.videoAsset=asset;else delete record.videoAsset;
+    if(asBackground){record.theme=L.theme({...record.theme,mode:'custom',customBackground:ref});if(asset)record.backgroundAsset=asset;else delete record.backgroundAsset;if(record.doc)record.doc.theme=record.theme;}
+    await this.writeRecord(r,record);
+    const previous=old?.musicVideo?.ref;
+    if(PUBLIC.test(previous||'')&&previous!==ref&&previous!==record.theme?.customBackground)await fsp.unlink(publicPath(this,r.recordingId,previous)).catch(()=>{});
+    return this.visibleRecord(r,{...record,recordingId:r.recordingId,private:isPrivate});
+  },
+  async updateMusicVideo({rel,revision,sync,remove=false,asBackground=false}){
+    const r=await this.resolve(rel),old=await this.readRecord(r);
+    if(!old?.musicVideo)throw I18n.error('MediaMissing');
+    if((old.revision||null)!==(revision||null))throw I18n.error('LyricsAnotherActionHasChangedTheAppearanceReopenThe');
+    const record={...old,revision:crypto.randomUUID(),updatedAt:Date.now()};
+    if(remove){
+      if(record.theme?.customBackground===record.musicVideo.ref){record.theme=L.theme({...record.theme,mode:'gradient',customBackground:''});delete record.backgroundAsset;if(record.doc)record.doc.theme=record.theme;}
+      delete record.musicVideo;delete record.videoAsset;
+    }else{
+      record.musicVideo={...record.musicVideo,...require('../shared/media').sync(sync)};
+      if(asBackground){record.theme=L.theme({...record.theme,mode:'custom',customBackground:record.musicVideo.ref});if(record.videoAsset)record.backgroundAsset=record.videoAsset;if(record.doc)record.doc.theme=record.theme;}
+    }
+    await this.writeRecord(r,record);
+    if(remove&&PUBLIC.test(old.musicVideo.ref)&&old.musicVideo.ref!==record.theme?.customBackground)await fsp.unlink(publicPath(this,r.recordingId,old.musicVideo.ref)).catch(()=>{});
+    return this.visibleRecord(r,{...record,recordingId:r.recordingId});
+  },
   async sealBackground(record,id){
-    const ref=record.theme?.customBackground;if(!PUBLIC.test(ref||''))return;
-    const file=publicPath(this,id,ref);await regular(file);
-    const st=await fsp.lstat(file),asset=await encrypt(this,{path:file,size:st.size,mtimeMs:st.mtimeMs,ctimeMs:st.ctimeMs,ino:st.ino,dev:st.dev,type:Media.typeOf(file),ext:path.extname(file).slice(1)});
-    record.backgroundAsset=asset;setTheme(record,asset.ref);
+    const encrypted=new Map();
+    for(const [ref,slot]of [[record.theme?.customBackground,'backgroundAsset'],[record.musicVideo?.ref,'videoAsset']]){
+      if(!PUBLIC.test(ref||''))continue;
+      const file=publicPath(this,id,ref);await regular(file);
+      const st=await fsp.lstat(file),asset=encrypted.get(ref)||await encrypt(this,{path:file,size:st.size,mtimeMs:st.mtimeMs,ctimeMs:st.ctimeMs,ino:st.ino,dev:st.dev,type:Media.typeOf(file),ext:path.extname(file).slice(1)});
+      encrypted.set(ref,asset);record[slot]=asset;if(slot==='backgroundAsset')setTheme(record,asset.ref);else record.musicVideo={...record.musicVideo,ref:asset.ref};
+    }
   },
   async retireBackground(entry){
     const root=directory(this,entry.lyricsRecordingId);
     const names=await fsp.readdir(root).catch(e=>{if(e.code==='ENOENT')return [];throw e;});if(!names.length)return;
     const box=JSON.parse(await fsp.readFile(this.privateFile(entry.id),'utf8'));
     const sealed=await run('open',box,entry.blob.key,`lyrics:${entry.id}`);
-    if(sealed.backgroundAsset)await run('verifyFile',privatePath(this,sealed.backgroundAsset),sealed.backgroundAsset.blob);
+    for(const asset of [sealed.backgroundAsset,sealed.videoAsset])if(asset)await run('verifyFile',privatePath(this,asset),asset.blob);
     // Refuse unknown files/symlinks; this is not a recursive deletion primitive.
     for(const name of names){if(!PUBLIC.test(name)&&!/^\.cover-[\w-]+\.tmp$/.test(name))throw I18n.error('LyricsBackgroundInvalid');await regular(path.join(root,name));}
     for(const name of names)await fsp.unlink(path.join(root,name));await fsp.rmdir(root);
   },
   async exportBackground(record,id){
-    const asset=record.backgroundAsset;
-    if(asset){
-      const file=privatePath(this,asset),ref='custom-'+asset.blob.sha256+'.'+Media.extension(asset.type),target=publicPath(this,id,ref);
-      await fsp.mkdir(directory(this,id),{recursive:true});
-      try{await regular(target);await run('verifySource',target,asset.blob);}catch(e){if(e.code!=='ENOENT')throw e;await run('decryptFile',file,target,asset.blob);}
-      setTheme(record,ref);
+    for(const slot of ['backgroundAsset','videoAsset']){
+      const asset=record[slot];
+      if(asset){
+        const file=privatePath(this,asset),ref='custom-'+asset.blob.sha256+'.'+Media.extension(asset.type),target=publicPath(this,id,ref);
+        await fsp.mkdir(directory(this,id),{recursive:true});
+        try{await regular(target);await run('verifySource',target,asset.blob);}catch(e){if(e.code!=='ENOENT')throw e;await run('decryptFile',file,target,asset.blob);}
+        if(slot==='backgroundAsset')setTheme(record,ref);else record.musicVideo={...record.musicVideo,ref};
+      }
+      delete record[slot];
     }
-    delete record.backgroundAsset;
   },
 };

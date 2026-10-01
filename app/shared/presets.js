@@ -6,7 +6,7 @@
     appearance:['theme','accent','customAccent','backgroundMode','customBackground','backgroundHistory','backgroundOpacity','appIcon','customIconStyle','appIconMarkVersion','surfaceStyle','surfaceOpacity','surfaceBorderColor','surfaceBorderOpacity','surfaceBorderThickness','surfaceApplyAll','surfaceProfiles'],
     player:['playerOverlay'],games:['gameOverlay'],hotkeys:['hotkeys'],
     library:['view','sort','categoryLayout','menuOrders'],language:['language'],
-    playback:['volume','lyricsDisplay','lyricsLastGradient'],search:['onlineSearch'],updates:[],
+    playback:['volume','sound','lyricsDisplay','lyricsLastGradient'],search:['onlineSearch'],updates:[],
   });
   const EXTERNAL=Object.freeze({search:['discoveryEnabled'],updates:['automatic','prerelease','components','intervalMinutes','intervalUnit']});
   const clone=x=>JSON.parse(JSON.stringify(x)),plain=x=>!!x&&typeof x==='object'&&!Array.isArray(x);

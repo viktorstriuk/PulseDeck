@@ -9,6 +9,9 @@
       const preview=this.$('lyricsThemePreview');preview.dataset.lyricsBackgroundDrop='';
       const group=document.createElement('section');group.className='ly-custom-background';group.dataset.lyricsBackgroundDrop='';group.id='lyricsBackgroundUpload';
       group.innerHTML=`<button type="button" id="lyricsBackgroundChoose" class="button secondary">${this.icon('folder',17)}<span data-i18n="LyricsBackgroundChoose">${I.h('LyricsBackgroundChoose')}</span></button><span class="ly-help" data-i18n="LyricsBackgroundDropHint">${I.h('LyricsBackgroundDropHint')}</span>`;
+      const find=document.createElement('button');find.id='lyricsBackgroundFind';find.type='button';find.className='button secondary';find.innerHTML=`${this.icon('search',17)}<span data-i18n="MediaFind">${I.h('MediaFind')}</span>`;
+      const video=document.createElement('button');video.id='lyricsBackgroundVideo';video.type='button';video.className='button secondary';video.innerHTML=`${this.icon('video',17)}<span data-i18n="MediaFindVideo">${I.h('MediaFindVideo')}</span>`;
+      group.querySelector('.ly-help').before(find,video);find.onclick=()=>Promise.resolve(this.findBackground?.()).catch(e=>this.error(e));video.onclick=()=>Promise.resolve(this.findVideo?.()).catch(e=>this.error(e));
       preview.after(group);
       this.$('lyricsBackgroundChoose').onclick=()=>this.chooseBackground();
       this.$('lyricsSettings').addEventListener('close',()=>this.$('lyricsThemePreview')?.querySelector('video')?.pause());

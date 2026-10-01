@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+func detachApplication(c *exec.Cmd)        {}
 func hideProcess(c *exec.Cmd)              {}
 func replaceAtomic(src, dst string) error  { return os.Rename(src, dst) }
 func freeSpace(path string) (uint64, bool) { return ^uint64(0), true }

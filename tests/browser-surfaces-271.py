@@ -128,7 +128,7 @@ try:
    settings(q)
    q.locator('#surfaceSettings').evaluate("e=>{const panel=e.closest('.settings-page');panel.scrollTop+=e.getBoundingClientRect().top-panel.getBoundingClientRect().top-12;}")
    q.screenshot(path=str(OUT/f'271-controls-{width}-{theme}-{lang}.png'))
-   if width<=860:check('compact settings navigation keeps eight visible labelled icons',q.locator('.settings-nav-item').evaluate_all("es=>es.length===8&&es.every(e=>e.getAttribute('aria-label')&&e.querySelector('[data-icon]').getBoundingClientRect().width>=18&&e.getBoundingClientRect().height>=44)"))
+   if width<=860:check('compact settings navigation keeps nine visible labelled icons including Sound',q.locator('.settings-nav-item').evaluate_all("es=>es.length===9&&es.some(e=>e.dataset.settingsPage==='sound')&&es.every(e=>e.getAttribute('aria-label')&&e.querySelector('[data-icon]').getBoundingClientRect().width>=18&&e.getBoundingClientRect().height>=44)"))
    check(f'no horizontal overflow at {width}px/{theme}/{lang}',q.locator('#surfaceSettings').evaluate('e=>e.scrollWidth<=e.clientWidth+1') and q.locator('[data-settings-panel=appearance]').evaluate('e=>e.scrollWidth<=e.clientWidth+1'))
    check(f'range tracks retain pointer targets at {width}px',q.locator('#surfaceOpacity').evaluate('e=>e.getBoundingClientRect().height===22'))
    check(f'labels translated at {width}px',not ('Surface' in q.locator('#surfaceSettings').inner_text()) and (('Background opacity' in q.locator('#surfaceSettings').inner_text()) if lang=='en' else ('Непрозрачность фона' in q.locator('#surfaceSettings').inner_text())))

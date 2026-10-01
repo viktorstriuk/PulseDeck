@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="release-center.css">
   <link rel="stylesheet" href="online-search.css">
   <link rel="stylesheet" href="track-tools.css">
+  <link rel="stylesheet" href="media-sound.css">
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -122,8 +123,9 @@
         </div>
       </div>
       <div class="volume-block">
+        <button id="videoBtn" class="icon-button subtle" type="button" data-i18n-title="MediaWatchVideo" aria-pressed="false"><span data-icon="video"></span></button>
         <button id="muteBtn" class="icon-button subtle" title="" data-i18n-title="UISound"><span data-icon="volume"></span></button>
-        <input id="volume" type="range" min="0" max="100" value="82" aria-label="" data-i18n-aria-label="UIVolume" />
+        <span class="pd-master-volume"><span id="volumeEffective" aria-hidden="true" hidden></span><input id="volume" type="range" min="0" max="100" value="82" aria-label="" data-i18n-aria-label="UIVolume" /></span><output id="volumeAdjustment" hidden></output>
       </div>
       <audio id="audio" preload="metadata"></audio>
     </footer>
@@ -159,10 +161,12 @@
 
   <div id="searchPopover" class="search-popover hidden"></div>
 
+  <section id="musicVideoStage" class="pd-video-stage" hidden aria-label="Music video"><video id="musicVideo" preload="auto" playsinline disablepictureinpicture></video></section>
   <div id="trimModal" class="modal-layer hidden" aria-hidden="true">
     <div class="modal trim-modal" role="dialog" aria-modal="true" aria-labelledby="trimTitle">
       <div class="modal-header">
         <div><span class="eyebrow" data-i18n="UIYouTubeBeforeDownloading"></span><h2 id="trimTitle" data-i18n="UITrimTrack"></h2></div>
+        <button id="trimAddVideo" class="button secondary" type="button"><span data-icon="video"></span><span data-i18n="MediaAddVideo"></span></button>
         <button class="icon-button modal-close" data-close="trimModal" title="" data-i18n-title="UIClose"><span data-icon="close"></span></button>
       </div>
       <div class="trim-media">
@@ -213,6 +217,7 @@
           <button class="settings-nav-item" data-settings-page="presets" data-i18n-title="PresetsTitle" data-i18n-aria-label="PresetsTitle"><span data-icon="save"></span><span><b data-i18n="PresetsTitle"></b><small data-i18n="PresetsNavHint"></small></span></button>
           <button class="settings-nav-item" data-settings-page="player" data-i18n-title="UIPlayer" data-i18n-aria-label="UIPlayer"><span data-icon="music"></span><span><b data-i18n="UIPlayer"></b><small data-i18n="UIPopupAndPersistent"></small></span></button>
           <button class="settings-nav-item" data-settings-page="games" data-i18n-title="UIGameOverlay" data-i18n-aria-label="UIGameOverlay"><span data-icon="gamepad"></span><span><b data-i18n="UIGameOverlay"></b><small data-i18n="UIOverGamesAndFullScreenApps"></small></span></button>
+          <button class="settings-nav-item" data-settings-page="sound" data-i18n-title="SoundTitle" data-i18n-aria-label="SoundTitle"><span data-icon="volume"></span><span><b data-i18n="SoundTitle"></b><small data-i18n="SoundNavHint"></small></span></button>
           <button class="settings-nav-item" data-settings-page="hotkeys" data-i18n-title="UIKeyboardShortcuts2" data-i18n-aria-label="UIKeyboardShortcuts2"><span data-icon="bars"></span><span><b data-i18n="UIKeyboardShortcuts2"></b><small data-i18n="UIControlsOverGames"></small></span></button>
           <button class="settings-nav-item" data-settings-page="updates" data-i18n-title="UpdatesTitle" data-i18n-aria-label="UpdatesTitle"><span data-icon="download"></span><span><b data-i18n="UpdatesTitle"></b><small data-i18n="UpdatesNavSubtitle"></small></span></button>
           <button class="settings-nav-item" data-settings-page="language" data-i18n-title="LanguageSettingsTitle" data-i18n-aria-label="LanguageSettingsTitle"><span data-icon="globe"></span><span><b data-i18n="LanguageSettingsTitle"></b><small data-i18n="LanguageSettingsDescription"></small></span></button>
@@ -505,6 +510,7 @@
             <div class="settings-reset-footer"><div><strong data-i18n="UIDefaultGameOverlay"></strong><span data-i18n="UIRestoreAutoTheRTSSVisualiserTopLeftPlacement"></span></div><button class="button secondary settings-reset-button" data-reset-settings="games"><span data-icon="undo"></span><span data-i18n="UIResetGameOverlay2"></span></button></div>
           </section>
 
+          <section class="settings-page sound-settings-page" data-settings-panel="sound"></section>
           <section class="settings-page" data-settings-panel="hotkeys">
             <div class="settings-page-title"><h3 data-i18n="UIKeyboardShortcuts2"></h3><p data-i18n="UIGlobalShortcutsWorkEvenWhenPulseDeckIsMinimised"></p></div>
             <div class="setting-block"><label class="switch-row"><input id="hotkeysEnabled" type="checkbox"><span></span><b data-i18n="UIGlobalKeyboardShortcuts"></b><small data-i18n="UIRegisteredWithWindowsShortcutsAlreadyUsedByThe"></small></label></div>
@@ -708,6 +714,13 @@
   <script src="menu-reorder.js"></script>
   <script src="../shared/presets.js"></script>
   <script src="presets-ui.js"></script>
+  <script src="keyed-dom.js"></script>
+<script src="../shared/media.js"></script>
+  <script src="sound-engine.js"></script>
+  <script src="media-transport.js"></script>
+  <script src="sound-ui.js"></script>
+  <script src="sound-test.js"></script>
+  <script src="music-video-ui.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

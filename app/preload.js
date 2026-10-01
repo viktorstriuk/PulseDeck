@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('pulse', {
     onChanged: callback => on('i18n:changed', callback),
   },
   lyrics: {backgroundFromDrop:(file,rel,revision)=>ipcRenderer.invoke('lyrics:background-drop',webUtils.getPathForFile(file),rel,revision),onAnalysis:cb=>on('lyrics:analysis-progress',cb),command: command=>ipcRenderer.invoke('lyrics:command',command), onProgress:cb=>on('lyrics:progress',cb), onLock:cb=>on('lyrics:locked',cb)},
+  media: {command:c=>ipcRenderer.invoke('media:command',c),onProgress:cb=>on('media:progress',cb)},
   vault: { command: (command) => ipcRenderer.invoke('vault:command', command) },
   library: {
     command: command => ipcRenderer.invoke('library:command', command),

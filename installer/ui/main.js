@@ -9,6 +9,7 @@ const {choose}=require('../../app/shared/language-choice');
 const languageData=loadCatalogs(path.join(root,'app/languages'));
 const catalogs=Object.fromEntries(Object.entries(languageData.catalogs).map(([code,catalog])=>[code,catalog.messages]));
 let selectedLanguage='en';
+let launching=false;
 let win=null,busy=false,completed='',lastReport='',mode=args['uninstall-target']?'uninstall':'install';
 const links={project:'https://github.com/viktorstriuk/PulseDeck',github:'https://github.com/viktorstriuk',youtube:'https://www.youtube.com/@mushep',telegram:'https://t.me/mushepchannel',twitch:'https://www.twitch.tv/themushep',tiktok:'https://www.tiktok.com/@themushep'};
 const reportRoot=path.resolve(process.env.LOCALAPPDATA||process.env.APPDATA||os.tmpdir(),'PulseDeck','logs');
@@ -28,10 +29,10 @@ function uiFailure(error){const code=String(error?.code||'');if(code==='EACCES'|
 function execute(request){if(busy)throw new Error('SetupErrorLocked');const folder=pathText(request?.target);if(!fs.existsSync(engine))throw new Error('SetupErrorIntegrity');busy=true;completed='';
  const language=request?.language;if(mode==='install'&&!Object.hasOwn(catalogs,language)){busy=false;throw new Error('SetupErrorLanguage');}const command=['--engine','--target',folder];if(mode==='install')command.push('--language',language);if(mode==='uninstall')command.push('--uninstall');else command.push('--runtime-archive',archive);if(request?.desktop===true && mode==='install')command.push('--desktop');
  return new Promise((resolve)=>{let buffered='',stderr='',last=null,terminal=false,spawnError=null;const child=spawn(engine,command,{windowsHide:true,stdio:['ignore','pipe','pipe']});
-  child.stdout.setEncoding('utf8');child.stdout.on('data',data=>{buffered+=data;if(buffered.length>1024*1024){child.kill();return;}const lines=buffered.split(/\r?\n/);buffered=lines.pop();for(const line of lines){try{const event=JSON.parse(line);if(typeof event.phase!=='string')continue;last=event;emit(event);}catch{}}});
+  child.stdout.setEncoding('utf8');child.stdout.on('data',data=>{buffered+=data;if(buffered.length>1024*1024){child.kill();return;}const lines=buffered.split(/\r?\n/);buffered=lines.pop();for(const line of lines){try{const event=JSON.parse(line);if(typeof event.phase!=='string')continue;last=event;if(!['done','removed'].includes(event.phase))emit(event);}catch{}}});
   child.stderr?.setEncoding?.('utf8');child.stderr?.on?.('data',data=>{if(stderr.length<65536)stderr+=String(data).slice(0,65536-stderr.length);});
-  const finish=(code)=>{if(terminal)return;terminal=true;busy=false;const success=code===0&&['done','removed'].includes(last?.phase);if(success){completed=folder;resolve({ok:true,target:folder});}else{const error=last?.error||uiFailure(spawnError),report=last?.report||uiReport(error,stderr||spawnError?.message||`maintenance exited with code ${code}`,folder);emit({phase:'error',error,target:folder,report,data:last?.data||{}});resolve({ok:false,error,report,data:last?.data||{}});}};
-  child.once('error',error=>{spawnError=error;finish(1);});child.once('exit',finish);
+  const finish=(code)=>{if(terminal)return;terminal=true;busy=false;const success=code===0&&['done','removed'].includes(last?.phase);if(success){completed=folder;emit(last);resolve({ok:true,target:folder});}else{const error=last?.error||uiFailure(spawnError),report=last?.report||uiReport(error,stderr||spawnError?.message||`maintenance exited with code ${code}`,folder);emit({phase:'error',error,target:folder,report,data:last?.data||{}});resolve({ok:false,error,report,data:last?.data||{}});}};
+  child.once('error',error=>{spawnError=error;finish(1);});child.once('close',finish);
  });}
 app.whenReady().then(()=>{
  nativeTheme.themeSource='system';selectedLanguage=choose(languageData.languages,app.getPreferredSystemLanguages(),args.language);
@@ -43,7 +44,13 @@ app.whenReady().then(()=>{
  handle('setup:open-link',id=>{const url=links[String(id||'')];if(!url)return false;return shell.openExternal(url).then(()=>true,()=>false);});
  handle('setup:inspect',value=>({existing:existing(pathText(value))}));handle('setup:folders',folders);handle('setup:execute',execute);
  handle('setup:minimize',()=>win.minimize());handle('setup:close',()=>{if(!busy)win.close();return !busy;});
- handle('setup:launch',()=>{if(!completed||busy||mode==='uninstall')return false;const exe=path.join(completed,'PulseDeck.exe');if(!fs.existsSync(exe))return false;const child=spawn(exe,[],{detached:true,windowsHide:true,stdio:'ignore'});return new Promise(resolve=>{child.once('error',()=>resolve(false));child.once('spawn',()=>{child.unref();resolve(true);win.close();});});});
+ handle('setup:launch',async()=>{
+   if(!completed||busy||launching||mode==='uninstall')return false;
+   launching=true;
+   try{await require('../../app/windows/launch').launchInstalled(completed,{version:packageInfo.version});return true;}
+   catch(error){lastReport=uiReport('SetupLaunchFailed',error?.stack||String(error),completed);emit({phase:'launch-error',error:'SetupLaunchFailed',report:lastReport,target:completed});return false;}
+   finally{launching=false;}
+ });
  win.loadURL(entry);
 });
 app.on('window-all-closed',()=>app.quit());

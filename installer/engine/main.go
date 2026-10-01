@@ -208,6 +208,9 @@ func installWithComponents(p *Package, archive, target string, notify func(Event
 	if e = provision(context.Background(), target, pins, notify); e != nil {
 		return fmt.Errorf("SETUP_COMPONENTS: %w", e)
 	}
+	if e = brandRuntime(filepath.Join(stage, "PulseDeck.exe"), p.Manifest.Version); e != nil {
+		return e
+	}
 	if e = commitStage(target, stage, p.Manifest.Version, notify, nil); e != nil {
 		return e
 	}
@@ -357,6 +360,7 @@ func runGUI(ctx context.Context, p *Package, notify func(Event)) error {
 		args = append(args, "--uninstall-target="+target)
 	}
 	cmd := exec.Command(filepath.Join(runtime, "electron.exe"), args...)
+	cmd.Env = applicationEnvironment(os.Environ())
 	hideProcess(cmd)
 	if e = cmd.Start(); e != nil {
 		return e
@@ -428,7 +432,13 @@ func main() {
 	if flag("--apply") {
 		target := arg("--target")
 		pid, _ := strconv.Atoi(arg("--wait-pid"))
+		// The same closure is retried by the splash. A failed launch must not
+		// reinstall or replace files under an already-started application.
+		installed := false
 		e = showSplash(p, words, func(ctx context.Context, notify func(Event)) error {
+			if installed {
+				return finishApplicationUpdate(ctx, target, p.Manifest.Version, flag("--restart"), notify)
+			}
 			notify(Event{Phase: "waiting"})
 			if pid > 0 {
 				if err := waitProcess(ctx, pid, 2*time.Minute); err != nil {
@@ -439,21 +449,18 @@ func main() {
 			if err != nil {
 				return err
 			}
-			return install(p, archive, target, notify)
+			if err = install(p, archive, target, func(ev Event) {
+				if ev.Phase != "done" {
+					notify(ev)
+				}
+			}); err != nil {
+				return err
+			}
+			installed = true
+			return finishApplicationUpdate(ctx, target, p.Manifest.Version, flag("--restart"), notify)
 		})
 		if e != nil {
-			diagnostic(e)
-		}
-		if flag("--restart") {
-			args := []string{}
-			if e != nil {
-				args = append(args, "--update-failed")
-			}
-			cmd := exec.Command(filepath.Join(target, "PulseDeck.exe"), args...)
-			hideProcess(cmd)
-			if err := cmd.Start(); err != nil {
-				diagnostic(err)
-			}
+			diagnosticReport(e, target, p.Manifest.Version, "update")
 		}
 		return
 	}
